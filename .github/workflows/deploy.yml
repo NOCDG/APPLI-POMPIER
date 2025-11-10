@@ -80,6 +80,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [build-backend, build-frontend]
+    env:
+      DOMAIN: ${{ secrets.DOMAIN }}
+      DOMAIN_ALT: ${{ secrets.DOMAIN_ALT }}
+      LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      ENV_PROD: ${{ secrets.ENV_PROD }}
     steps:
       - name: Download backend
         uses: actions/download-artifact@v4
@@ -106,47 +114,42 @@ jobs:
       - name: Known hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p "${{ secrets.SSH_PORT }}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "${SSH_PORT}" -H "${SSH_HOST}" >> ~/.ssh/known_hosts
 
       - name: Synchroniser backend → serveur
         run: |
-          rsync -az --delete backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feuille-garde/app/
+          rsync -az --delete backend/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/
 
       - name: Synchroniser frontend (Vite dist) → serveur
         run: |
-          rsync -az --delete frontend_out/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feuille-garde/frontend_build/
+          rsync -az --delete frontend_out/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
       - name: Déployer .env prod
         run: |
-          printf "%s\n" "${{ secrets.ENV_PROD }}" | ssh -p "${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cat > /opt/feuille-garde/app/.env && chmod 600 /opt/feuille-garde/app/.env"
+          printf "%s\n" "${ENV_PROD}" | ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "cat > /opt/feuille-garde/app/.env && chmod 600 /opt/feuille-garde/app/.env"
 
-      # HTTPS idempotent (heredoc QUOTÉ pour éviter l'expansion)
       - name: Configurer HTTPS (Let's Encrypt) — simplifié
-        if: ${{ secrets.DOMAIN != '' && secrets.LETSENCRYPT_EMAIL != '' }}
+        if: ${{ env.DOMAIN != '' && env.LETSENCRYPT_EMAIL != '' }}
         run: |
-          ssh -p "${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -lc '
+          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} bash -lc '
             set -euo pipefail
-            DOMAIN="${{ secrets.DOMAIN }}"
-            DOMAIN_ALT="${{ secrets.DOMAIN_ALT }}"
-            EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
-      
-            # 1) Installer certbot si absent
+            DOMAIN="${DOMAIN}"
+            DOMAIN_ALT="${DOMAIN_ALT}"
+            EMAIL="${LETSENCRYPT_EMAIL}"
+
             if ! command -v certbot >/dev/null 2>&1; then
               sudo apt-get update
               sudo apt-get install -y certbot python3-certbot-nginx
             fi
-      
-            # 2) S assurer qu une conf Nginx existe déjà (créée au préalable dans ta procédure)
+
             if [ ! -f /etc/nginx/sites-available/feuille_garde ]; then
               echo "❌ /etc/nginx/sites-available/feuille_garde introuvable. Crée la conf HTTP de base avant HTTPS."
               exit 1
             fi
-      
-            # 3) Mettre à jour le server_name (pas de heredoc)
+
             sudo sed -i -E "s/server_name .*/server_name ${DOMAIN} ${DOMAIN_ALT};/" /etc/nginx/sites-available/feuille_garde || true
             sudo nginx -t && sudo systemctl reload nginx
-      
-            # 4) Emettre le certificat si absent (+ redirect auto)
+
             if [ -d "/etc/letsencrypt/live/${DOMAIN}" ] && [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
               echo "[LE] Certificat déjà présent pour ${DOMAIN} → skip émission."
             else
@@ -156,12 +159,10 @@ jobs:
                 sudo certbot --nginx -n --agree-tos --email "${EMAIL}" -d "${DOMAIN}" --redirect
               fi
             fi
-      
-            # 5) Test de renouvellement
+
             sudo certbot renew --dry-run || true
           '
 
-
       - name: Redémarrer backend + recharger Nginx
         run: |
-          ssh -p "${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -lc "/opt/feuille-garde/bin/post_deploy.sh"'
+          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -lc "/opt/feuille-garde/bin/post_deploy.sh"'
