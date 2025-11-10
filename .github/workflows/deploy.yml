@@ -43,7 +43,7 @@ jobs:
   
       - name: Vérification stricte (doit exister)
         run: |
-          test -d dist || { echo "❌ Pas de dossier dist : build absent/échoué (ou mauvais dossier)."; exit 1; }
+          test -d dist || { echo "❌ Pas de dossier dist  : build absent/échoué (ou mauvais dossier)."; exit 1; }
   
       - name: Upload artifact frontend
         uses: actions/upload-artifact@v4
