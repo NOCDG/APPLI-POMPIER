@@ -17,23 +17,39 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: frontend        # ← IMPORTANT
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+  
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm run build
-      - run: |
-          ls -lAh .
-          ls -lAh dist || true
-      - uses: actions/upload-artifact@v4
+  
+      - name: Install deps
+        run: npm ci
+  
+      - name: Build (Vite)
+        run: npm run build
+  
+      - name: Debug sortie (où est dist ?)
+        run: |
+          echo "Chemin courant:" && pwd
+          echo "Contenu de frontend/ :" && ls -lAh .
+          echo "Contenu de frontend/dist :" && ls -lAh dist || true
+  
+      - name: Vérification stricte (échoue si pas de dist/)
+        run: |
+          test -d dist || { echo "❌ Pas de dossier dist : build absent/échoué (ou mauvais dossier)."; exit 1; }
+  
+      - name: Upload artifact frontend
+        uses: actions/upload-artifact@v4
         with:
           name: frontend
           path: dist
           if-no-files-found: error
-          retention-days: 7
+        retention-days: 7
 
 
   build-backend:
