@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend        # ← IMPORTANT
+        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,19 +27,21 @@ jobs:
         with:
           node-version: 20
   
+      # ⚠️ Si tu as un package-lock.json → garde npm ci
+      # Si tu n'as PAS de package-lock.json → remplace par "npm install"
       - name: Install deps
         run: npm ci
   
       - name: Build (Vite)
         run: npm run build
   
-      - name: Debug sortie (où est dist ?)
+      - name: Debug sortie
         run: |
-          echo "Chemin courant:" && pwd
-          echo "Contenu de frontend/ :" && ls -lAh .
-          echo "Contenu de frontend/dist :" && ls -lAh dist || true
+          pwd
+          ls -lAh .
+          ls -lAh dist || true
   
-      - name: Vérification stricte (échoue si pas de dist/)
+      - name: Vérification stricte (doit exister)
         run: |
           test -d dist || { echo "❌ Pas de dossier dist : build absent/échoué (ou mauvais dossier)."; exit 1; }
   
