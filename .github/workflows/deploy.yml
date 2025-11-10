@@ -140,7 +140,6 @@ jobs:
             if [ ! -f /etc/nginx/sites-available/feuille_garde ]; then
               sudo tee /etc/nginx/sites-available/feuille_garde >/dev/null <<NGINX
 server {
-    listen 80;
     server_name ${DOMAIN} ${DOMAIN_ALT};
 
     root /opt/feuille-garde/frontend_build;
