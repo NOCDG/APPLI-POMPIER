@@ -4,6 +4,10 @@ on:
   push:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   build-frontend:
     runs-on: ubuntu-latest
@@ -17,10 +21,14 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run build
+      - name: Vérifier le dossier build
+        run: ls -lAh build || true
       - uses: actions/upload-artifact@v4
         with:
           name: frontend
-          path: frontend/build
+          path: build
+          if-no-files-found: error
+          retention-days: 7
 
   build-backend:
     runs-on: ubuntu-latest
@@ -33,10 +41,14 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
+      - name: Vérifier le contenu backend
+        run: ls -lAh .
       - uses: actions/upload-artifact@v4
         with:
           name: backend
-          path: backend
+          path: .
+          if-no-files-found: error
+          retention-days: 7
 
   deploy:
     runs-on: ubuntu-latest
@@ -46,20 +58,33 @@ jobs:
         with:
           name: backend
           path: backend
+
       - uses: actions/download-artifact@v4
         with:
           name: frontend
           path: frontend/build
+
+      - name: Vérifier le téléchargement
+        run: |
+          ls -lAh backend
+          ls -lAh frontend/build
+
       - uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
-      - run: mkdir -p ~/.ssh && ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      - name: Déploiement backend
+
+      - run: mkdir -p ~/.ssh && ssh-keyscan -p "${{ secrets.SSH_PORT }}" -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Synchroniser le backend
         run: rsync -az --delete backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feuille-garde/app/
-      - name: Déploiement frontend
+
+      - name: Synchroniser le frontend
         run: rsync -az --delete frontend/build/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feuille-garde/frontend_build/
-      - name: Env prod
+
+      - name: Déployer les variables d’environnement
         run: |
-          printf "%s\n" "${{ secrets.ENV_PROD }}" | ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cat > /opt/feuille-garde/app/.env && chmod 600 /opt/feuille-garde/app/.env"
-      - name: Lancer post deploy
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -lc "/opt/feuille-garde/bin/post_deploy.sh"'
+          printf "%s\n" "${{ secrets.ENV_PROD }}" | ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cat > /opt/feuille-garde/app/.env && chmod 600 /opt/feuille-garde/app/.env"
+
+      - name: Exécuter le post-deploy
+        run: |
+          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -lc "/opt/feuille-garde/bin/post_deploy.sh"'
