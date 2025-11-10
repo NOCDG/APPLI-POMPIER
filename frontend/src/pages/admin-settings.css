@@ -1,0 +1,30 @@
+.as-card {
+  border:1px solid #2e3a66;
+  background:#0d1226;
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:12px;
+}
+
+.as-grid {
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap:10px;
+}
+@media (max-width: 900px){ .as-grid { grid-template-columns: 1fr; } }
+
+.as-input, .as-textarea, .as-select {
+  width:100%;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid #2e3a66;
+  background:#0b0f20;
+  color:#e9eeff;
+}
+
+.as-textarea { min-height:110px; }
+.as-textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+.as-testmail {
+  display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;
+}

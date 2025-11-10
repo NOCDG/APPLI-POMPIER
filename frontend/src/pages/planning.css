@@ -1,0 +1,273 @@
+.pl-container,
+main {
+  max-width: none !important;
+  width: 100% !important;
+}
+
+.pl-title { margin: 24px 0; }
+.pl-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.pl-toolbar select { padding: 8px 10px; border-radius: 10px; border: 1px solid #2e3a66; background:#0b0f20; color:#e9eeff; }
+.pl-btn { padding: 8px 12px; border-radius: 10px; border:1px solid #2e3a66; background:#111735; color:#e9eeff; cursor:pointer; }
+
+/* ===== Grille ===== */
+.pl-grid {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+.pl-empty { color:#7b8ab8; border:1px dashed #2e3a66; border-radius: 12px; padding: 16px; grid-column: 1/-1; }
+
+/* ===== Carte jour ===== */
+.pl-fullbleed {
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;   /* sort du conteneur centré */
+  margin-right: -50vw;
+  width: 100vw;         /* prend toute la largeur de la fenêtre */
+  max-width: 100vw;
+  box-sizing: border-box;
+  padding-left: 12px;   /* petits padding bord écran */
+  padding-right: 12px;
+}
+
+.pl-month-strip {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  /* --- Le secret : forcer la largeur viewport --- */
+  position: relative;
+  left: 50%;
+  right: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  box-sizing: border-box;
+
+  padding: 10px 16px;
+  background-color: transparent; /* ou une couleur si tu veux */
+}
+
+/* Chaque carte garde sa largeur lisible */
+.pl-day {
+  flex: 0 0 auto;
+  min-width: 320px;
+  max-width: 400px;
+}
+
+/* En-tête plus claire */
+.pl-day-head {
+  display:flex; align-items:center; justify-content:space-between;
+  border-radius: 12px;
+  padding:10px 12px; border-bottom:1px solid #4065e9;
+  background:#345feb; /* plus clair que le fond (#0d1226) */
+}
+.pl-date { font-weight: 700; }
+.pl-chip { background:#fc0000; color:#e9eeff; border-radius:999px; padding:2px 8px; font-size: 12px; }
+
+/* ===== Blocs garde ===== */
+.pl-garde { padding: 10px 12px; border-top:1px dashed #26325a; }
+.pl-garde:first-of-type { border-top:none; }
+.pl-garde.day { background: #464506; border-radius: 12px;}
+.pl-garde.night { background: #121d47; border-radius: 12px; }
+
+.pl-garde-head { display:flex; align-items:center; border-radius: 12px; background: #ac7207; padding:3px 15px; justify-content:space-between; margin-bottom: 6px; }
+
+/* ===== Tableau piquets ===== */
+.pl-rows { display:flex; flex-direction:column; gap:6px; }
+.pl-row {
+  display: grid;
+  grid-template-columns: 80px auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* Texte piquet plus petit (au lieu de bold) */
+.pl-piquet { font-size: 12px; color:#a9b6dd; font-weight: 500; letter-spacing: 0.2px; }
+
+.pl-assignee {
+  min-height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.pl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0px;
+  padding: 0px 0px;
+  border-radius: 0px;
+  border: 0px solid #2e3a66;
+  background: transparent;
+  font-size: 14px;
+  color: #e9ffea;
+  font-weight: bold;
+  white-space: nowrap;       /* 🔹 empêche les retours à la ligne */
+  overflow: hidden;          /* coupe ce qui dépasse */
+  text-overflow: ellipsis;   /* ajoute "…" si trop long */
+  max-width: 100%;           /* garde une taille adaptée au conteneur */
+}
+
+.pl-empty-small { color:#6b7aa8; }
+
+/* Actions */
+.pl-actions { display:flex; justify-content:flex-end; }
+.pl-btn-mini { padding:6px 8px; border-radius:8px; border:1px solid #2e3a66; background:#132272; color:#e9eeff; cursor:pointer; font-size:12px; }
+.pl-btn-danger-mini { padding:6px 8px; border-radius:8px; border:1px solid #b91c1c; background:#7f1d1d; color:#fff; cursor:pointer; font-size:12px; }
+
+/* ===== Panel ===== */
+.pl-panel { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:flex-end; }
+.pl-panel-card { background:#0d1226; border-top-left-radius:16px; border-top-right-radius:16px; width:100%; max-height:80vh; overflow:auto; padding:12px; border-top:1px solid #2e3a66; }
+.pl-panel-head { display:flex; align-items:center; justify-content:space-between; }
+.pl-panel-title { font-weight:700; }
+.pl-panel-sub { color:#7b8ab8; font-size:13px; }
+.pl-x { border:none; background:transparent; color:#e9eeff; font-size:18px; cursor:pointer; }
+
+.pl-panel-block { margin-top:12px; }
+.pl-subtitle { font-weight:600; color:#a9b6dd; margin-bottom:6px; }
+.pl-muted { color:#7b8ab8; }
+.pl-input { width:100%; padding:10px 12px; border-radius:10px; border:1px solid #2e3a66; background:#0b0f20; color:#e9eeff; }
+
+.pl-suggests, .pl-results { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+.pl-suggest, .pl-result { padding:8px 10px; border-radius:10px; border:1px solid #2e3a66; background:#0b0f20; color:#e9eeff; cursor:pointer; }
+
+.pl-garde.locked {
+  opacity: .7;
+  pointer-events: auto; /* on veut juste désactiver les boutons via disabled */
+}
+.pl-actions .pl-btn-mini[disabled],
+.pl-actions .pl-btn-danger-mini[disabled] {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.pl-badge-ok {
+  margin-left: .5rem;
+  padding: .2rem .5rem;
+  border-radius: .5rem;
+}
+
+.pl-badge-ok {
+  margin-left: .5rem;
+  padding: .2rem .5rem;
+  border-radius: .5rem;
+  background: #166534; /* vert foncé */
+  color: #dcfce7;      /* vert très clair */
+  font-weight: 700;
+  border: 1px solid #14532d;
+}
+
+.pl-badge-bad {
+  margin-left: .5rem;
+  padding: .2rem .5rem;
+  border-radius: .5rem;
+  background: #7f1d1d; /* rouge foncé */
+  color: #ffe4e6;
+  font-weight: 700;
+  border: 1px solid #7f1d1d;
+}
+
+/* ---- Ruban mensuel gauche → droite ---- */
+.month-block {
+  margin-bottom: 16px;
+}
+
+.month-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.month-strip {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: 4px 2px;
+}
+
+/* Carte d’une garde */
+.garde-card {
+  border: 1px solid #e2e2e2;
+  border-radius: 10px;
+  padding: 6px 8px;
+  min-width: 70px;             /* largeur mini pour bien “défiler” à l’horizontale */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+}
+
+/* Visuels selon type de jour */
+.garde-card.weekend { outline: 2px dashed rgba(200,0,0,0.2); }
+.garde-card.holiday { outline: 2px solid rgba(255,165,0,0.35); }
+
+.garde-card .garde-date { font-weight: 600; }
+.garde-card .garde-slot { opacity: 0.85; font-size: 11px; }
+.garde-card .garde-equipe.empty { opacity: 0.5; }
+
+/* Optionnel : styles slot */
+.garde-card.jour  { background: rgba(0, 140, 255, 0.06); }
+.garde-card.nuit  { background: rgba(40, 40, 40, 0.06); }
+
+/* ---- Colonne des noms (plus étroite) ---- */
+.name-col {
+  width: 110px;
+  min-width: 110px;
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Les cellules nom/personne raccourcies */
+.cell-person {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === Boutons icônes Add / Remove === */
+.pl-icon-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 2px 4px;
+  transition: transform 0.15s ease;
+}
+
+.pl-icon-btn:hover {
+  transform: scale(1.2);
+}
+
+.pl-icon-btn.add {
+  color: #28a745;        /* vert */
+}
+
+.pl-icon-btn.add:hover {
+  color: #218838;
+}
+
+.pl-icon-btn.remove {
+  color: #dc3545;        /* rouge */
+}
+
+.pl-icon-btn.remove:hover {
+  color: #bd2130;
+}

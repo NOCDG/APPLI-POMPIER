@@ -1,0 +1,186 @@
+/* container */
+.pg-container {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* titles */
+.pg-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+.pg-subtitle {
+  color: #6b7aa8;
+  margin-top: 0;
+}
+
+/* cards / sections */
+.pg-card {
+  border: 1px solid #2e3a66;
+  border-radius: 14px;
+  padding: 12px;
+  background: #0d1226;
+}
+.pg-mt-12 { margin-top: 12px; }
+.pg-section-header {
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+}
+
+/* form */
+.pg-grid6 {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+.pg-field { display: flex; flex-direction: column; gap: 6px; }
+.pg-label { font-size: 13px; color: #a9b6dd; }
+
+.pg-input {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #2e3a66;
+  background: #0b0f20;
+  color: #e9eeff;
+  outline: none;
+}
+.pg-actions-right { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+
+/* buttons */
+.pg-btn-primary {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #3b82f6;
+  background: #1d4ed8;
+  color: #fff;
+  cursor: pointer;
+}
+.pg-btn-secondary {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #2e3a66;
+  background: #111735;
+  color: #e9eeff;
+  cursor: pointer;
+}
+
+/* list & cards */
+.pg-list { margin-top: 16px; }
+.pg-person-card {
+  border: 1px solid #2e3a66;
+  border-radius: 14px;
+  padding: 12px;
+  background: #0d1226;
+  margin-bottom: 10px;
+}
+.pg-person-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pg-person-name { font-weight: 700; }
+.pg-person-meta { color: #6b7aa8; font-size: 13px; }
+
+/* avatar */
+.pg-avatar {
+  width: 36px; height: 36px; border-radius: 999px;
+  background: #1f2a4e; color: #e9eeff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+
+/* blocks */
+.pg-block { margin-top: 8px; }
+.pg-subtitle { font-weight: 600; color: #a9b6dd; }
+
+/* pills */
+.pg-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pg-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-radius: 999px;
+  border: 1px solid #2e3a66; background: #0b0f20; font-size: 13px;
+}
+.pg-empty { color: #7b8ab8; }
+
+/* inline row */
+.pg-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* icon btn */
+.pg-icon-btn {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0; margin-left: 6px;
+}
+
+/* Pastilles d'équipe */
+.pg-team-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #1f2937;
+  color: #fff;
+}
+
+/* Couleurs par équipe */
+.team-a { background: #2563eb; } /* bleu */
+.team-b { background: #dc2626; } /* rouge */
+.team-c { background: #16a34a; } /* vert */
+.team-d { background: #eab308; color: #111; } /* jaune lisible */
+.team-x { background: #6b7280; } /* fallback gris */
+
+/* header de carte avec actions à droite */
+.pg-person-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 8px;
+}
+.pg-person-head-left { display: flex; align-items: center; gap: 10px; }
+
+/* bouton danger */
+.pg-btn-danger {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #b91c1c;
+  background: #7f1d1d;
+  color: #fff;
+  cursor: pointer;
+}
+.pg-btn-danger:hover { background: #991b1b; }
+
+/* backdrop */
+.pg-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+}
+
+/* modal */
+.pg-modal {
+  background: white;
+  padding: 18px;
+  border-radius: 8px;
+  min-width: 360px;
+  max-width: 90%;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+}
+
+.pg-editable { cursor: pointer; border-bottom: 1px dashed transparent; }
+.pg-editable:hover { border-bottom-color: rgba(255,255,255,0.35); }
+
+.pg-input-inline {
+  padding: 4px 6px;
+  min-width: 120px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  font-size: 0.95rem;
+}

@@ -1,0 +1,82 @@
+/* Conteneur principal */
+.home-container { max-width: 1200px; margin: 0 auto; }
+
+/* Topbar / Menu */
+.home-topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0;
+  background: #0d1226; /* même fond que les cartes */
+  border-bottom: 1px solid #2e3a66;
+}
+.home-brand { font-weight: 800; letter-spacing: .4px; }
+.home-nav { display: flex; gap: 10px; flex-wrap: wrap; }
+.home-nav a {
+  padding: 6px 10px; border-radius: 10px;
+  border: 1px solid #2e3a66; background: #111735; color: #e9eeff;
+  text-decoration: none; font-size: 14px;
+}
+.home-nav a:hover { background: #16204b; }
+
+/* Main */
+.home-main { padding: 12px 0; }
+
+/* Toolbar */
+.home-toolbar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 8px 0 14px;
+}
+
+/* Grille des cartes gardes */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1200px) { .home-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 780px)  { .home-grid { grid-template-columns: 1fr; } }
+
+.home-card {
+  border: 1px solid #2e3a66;
+  border-radius: 14px;
+  background: #0d1226;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* Tête carte */
+.home-card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border-bottom: 1px solid #26325a; padding-bottom: 8px;
+}
+.home-date { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.home-date-txt { font-weight: 700; }
+.home-slot {
+  font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid #2e3a66;
+  background: #0b0f20;
+}
+.home-slot.day { border-color: #16a34a66; }
+.home-slot.night { border-color: #2563eb66; }
+
+.home-team { display: flex; align-items: center; gap: 6px; }
+.home-team-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 28px; border-radius: 10px; font-weight: 800; color: #fff;
+}
+.home-team-badge.team-x { background:#6b7280; }
+
+/* Corps carte */
+.home-card-body { display: flex; flex-direction: column; gap: 6px; }
+.home-piquets { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.home-pill {
+  display: inline-flex; align-items: center;
+  padding: 4px 8px; border-radius: 999px;
+  border: 1px solid #2e3a66; background:#0b0f20;
+  font-size: 12px; color: #e9eeff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+
+/* Pied carte */
+.home-card-foot { display: flex; justify-content: flex-end; }
+.home-link { text-decoration: none; }
