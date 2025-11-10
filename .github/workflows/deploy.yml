@@ -10,25 +10,48 @@ permissions:
 
 jobs:
   build-frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-      - run: npm run build
-      - name: Vérifier le dossier build
-        run: ls -lAh build || true
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend
-          path: build
-          if-no-files-found: error
-          retention-days: 7
+  runs-on: ubuntu-latest
+  defaults:
+    run:
+      working-directory: frontend
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install deps
+      run: npm ci
+
+    - name: Build
+      run: npm run build
+
+    - name: Lister sortie build
+      run: |
+        echo "Contenu racine frontend :"
+        ls -lAh .
+        echo "Recherche des dossiers build/dist :"
+        ls -lAh build || true
+        ls -lAh dist || true
+
+    - name: Déterminer OUT_DIR (build ou dist)
+      id: outdir
+      run: |
+        if [ -d build ]; then
+          echo "dir=build" >> $GITHUB_OUTPUT
+        elif [ -d dist ]; then
+          echo "dir=dist" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Aucune sortie (ni build/ ni dist/). Le build a probablement échoué."
+          exit 1
+        fi
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: frontend
+        path: ${{ steps.outdir.outputs.dir }}
+        if-no-files-found: error
+        retention-days: 7
 
   build-backend:
     runs-on: ubuntu-latest
@@ -60,10 +83,10 @@ jobs:
           path: backend
 
       - uses: actions/download-artifact@v4
-        with:
-          name: frontend
-          path: frontend/build
-
+          with:
+            name: frontend
+            path: frontend_out
+            
       - name: Vérifier le téléchargement
         run: |
           ls -lAh backend
@@ -79,7 +102,7 @@ jobs:
         run: rsync -az --delete backend/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feuille-garde/app/
 
       - name: Synchroniser le frontend
-        run: rsync -az --delete frontend/build/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feuille-garde/frontend_build/
+        run: rsync -az --delete frontend_out/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/feuille-garde/frontend_build/
 
       - name: Déployer les variables d’environnement
         run: |
