@@ -118,53 +118,58 @@ jobs:
 
       - name: Déployer .env prod
         run: |
-          printf "%s\n" "${{ secrets.ENV_PROD }}" | ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cat > /opt/feuille-garde/app/.env && chmod 600 /opt/feuille-garde/app/.env"
+          printf "%s\n" "${{ secrets.ENV_PROD }}" | ssh -p "${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cat > /opt/feuille-garde/app/.env && chmod 600 /opt/feuille-garde/app/.env"
 
-      # Étape HTTPS idempotente (installe certbot si besoin, émet/renouvelle le certif, configure la redirection)
+      # HTTPS idempotent (heredoc QUOTÉ pour éviter l'expansion)
       - name: Configurer HTTPS (Let's Encrypt)
-        if: ${{ secrets.DOMAIN != '' && secrets.LETSENCRYPT_EMAIL != '' }}
         run: |
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -lc '
+          # Skip si DOMAIN ou EMAIL manquants
+          if [ -z "${{ secrets.DOMAIN }}" ] || [ -z "${{ secrets.LETSENCRYPT_EMAIL }}" ]; then
+            echo "DOMAIN ou LETSENCRYPT_EMAIL manquant → on saute l'étape HTTPS."
+            exit 0
+          fi
+
+          ssh -p "${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -lc '
             set -euo pipefail
             DOMAIN="${{ secrets.DOMAIN }}"
             DOMAIN_ALT="${{ secrets.DOMAIN_ALT }}"
             EMAIL="${{ secrets.LETSENCRYPT_EMAIL }}"
 
-            # Installer certbot si absent
             if ! command -v certbot >/dev/null 2>&1; then
               sudo apt-get update
               sudo apt-get install -y certbot python3-certbot-nginx
             fi
 
-            # Assurer une conf Nginx minimale HTTP (si pas déjà faite)
+            # Conf HTTP minimale si absente
             if [ ! -f /etc/nginx/sites-available/feuille_garde ]; then
-              sudo tee /etc/nginx/sites-available/feuille_garde >/dev/null <<NGINX
+              sudo tee /etc/nginx/sites-available/feuille_garde >/dev/null <<'"NGINX"'
 server {
-    server_name ${DOMAIN} ${DOMAIN_ALT};
+    listen 80;
+    server_name DOMAIN_PLACEHOLDER DOMAIN_ALT_PLACEHOLDER;
 
     root /opt/feuille-garde/frontend_build;
     index index.html;
 
     location / {
-        try_files \$uri /index.html;
+        try_files $uri /index.html;
     }
 
     location /api {
         proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
     }
 }
-NGINX
+"NGINX"
+              sudo sed -i "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g; s/DOMAIN_ALT_PLACEHOLDER/${DOMAIN_ALT}/g" /etc/nginx/sites-available/feuille_garde
               sudo ln -sf /etc/nginx/sites-available/feuille_garde /etc/nginx/sites-enabled/feuille_garde
               sudo nginx -t && sudo systemctl restart nginx
             else
-              # Mettre à jour server_name si nécessaire
               sudo sed -i -e "s/server_name .*/server_name ${DOMAIN} ${DOMAIN_ALT};/" /etc/nginx/sites-available/feuille_garde || true
               sudo nginx -t && sudo systemctl reload nginx
             fi
 
-            # Émission (ou skip si déjà présent) + redirection auto
+            # Certif (émission si absent) + redirect auto
             if [ -d "/etc/letsencrypt/live/${DOMAIN}" ] && [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
               echo "[LE] Certificat déjà présent pour ${DOMAIN} → skip émission."
             else
@@ -175,10 +180,9 @@ NGINX
               fi
             fi
 
-            # Test renouvellement (dry-run)
             sudo certbot renew --dry-run || true
           '
 
       - name: Redémarrer backend + recharger Nginx
         run: |
-          ssh -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -lc "/opt/feuille-garde/bin/post_deploy.sh"'
+          ssh -p "${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -lc "/opt/feuille-garde/bin/post_deploy.sh"'
