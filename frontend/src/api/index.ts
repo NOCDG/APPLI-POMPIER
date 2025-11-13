@@ -1,38 +1,37 @@
-import api from "./axios";
+// frontend/src/api/axios.ts
+import axios from "axios";
 
 /**
- * Récupère les infos de l’utilisateur connecté
- * (dépend du token JWT envoyé automatiquement dans les headers)
+ * On lit l'URL d'API uniquement via les variables d'env du build Vite.
+ * - .env.development => dev
+ * - .env.production  => prod (CI/CD)
+ * On retire un éventuel slash final pour éviter les // dans les URLs.
  */
-export async function getMe() {
-  const response = await api.get("/users/me");
-  return response.data;
+const raw = import.meta.env.VITE_API_BASE_URL as string | undefined;
+if (!raw) {
+  // En prod, on NE veut PAS de fallback silencieux vers localhost.
+  // Ça permet de détecter immédiatement une mauvaise config CI/CD.
+  // En dev, .env.development doit aussi la fournir.
+  // eslint-disable-next-line no-console
+  console.error("VITE_API_BASE_URL n'est pas défini au build !");
+  throw new Error("VITE_API_BASE_URL is missing.");
 }
 
-/**
- * Liste les personnels (optionnellement filtrés par équipe)
- */
-export async function listPersonnels(equipe_id?: number) {
-  const response = await api.get("/personnels", {
-    params: equipe_id ? { equipe_id } : {},
-  });
-  return response.data;
-}
+const baseURL = raw.replace(/\/+$/, ""); // supprime trailing slash
 
-/**
- * Génère toutes les gardes du mois (backend : /gardes/generate_month_all)
- */
-export async function generateMonth(year: number, month: number) {
-  const response = await api.post("/gardes/generate_month_all", { year, month });
-  return response.data;
-}
+const api = axios.create({
+  baseURL,
+  // withCredentials: true, // si tu utilises des cookies côté API
+});
 
-/**
- * Liste les gardes d’un mois (et équipe si besoin)
- */
-export async function listGardes(year: number, month: number, equipe_id?: number) {
-  const response = await api.get("/gardes", {
-    params: { year, month, equipe_id },
-  });
-  return response.data;
-}
+// (optionnel) Authorization: Bearer si tu stockes le token côté front
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default api;

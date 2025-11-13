@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.db.base import Base
@@ -11,16 +12,14 @@ app = FastAPI(title="FEUILLE_GARDE API")
 
 
 # Autorise Vite en dev
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-]
+origins_env = os.getenv("CORS_ORIGINS", "")
+origins = [o.strip() for o in origins_env.split(",") if o.strip()]
+if not origins:
+    origins = ["https://pompier.gandour.org"]
 # 💡 En dev, autorise tout pour débloquer. Tu pourras resserrer plus tard.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173","http://localhost:5173"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
