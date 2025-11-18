@@ -18,42 +18,42 @@ jobs:
   # =========================
   build-frontend:
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: frontend      # 🔹 TOUT ce qui est 'run' se passe dans frontend/
+  
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+  
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
+  
       - name: Install deps
         run: npm ci
-        working-directory: frontend
-
+  
       - name: Build (Vite)
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
         run: npm run build
-        working-directory: frontend
-
+  
       - name: Debug sortie
         run: |
-          pwd
+          pwd                    # doit afficher .../APPLI-POMPIER/frontend
           ls -lAh .
-          ls -lAh frontend/dist || true
-
+          ls -lAh dist || true
+  
       - name: Vérification stricte (doit exister)
         run: |
-          test -d frontend/dist || { echo "❌ Pas de dossier frontend/dist : build absent/échoué."; exit 1; }
-
+          test -d dist || { echo "❌ Pas de dossier dist : build absent/échoué."; exit 1; }
+  
       - name: Upload artifact frontend
         uses: actions/upload-artifact@v4
         with:
           name: frontend
-          # le build est dans frontend/dist côté repo
-          path: frontend/dist
+          path: dist               # 🔹 dist, pas frontend/dist
           if-no-files-found: error
           retention-days: 7
 
