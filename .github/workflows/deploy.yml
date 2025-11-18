@@ -143,13 +143,16 @@ jobs:
         with:
           name: frontend
           path: frontend_out
-
+      
       - name: Vérifier téléchargements
         run: |
-          echo "=== backend_out ==="
-          ls -R backend_out
           echo "=== frontend_out ==="
           ls -R frontend_out
+      
+      - name: Synchroniser frontend (Vite dist) → serveur
+        run: |
+          # Après download, on a frontend_out/dist/
+          rsync -az -e "ssh -p ${SSH_PORT}" frontend_out/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
       - name: SSH key
         uses: webfactory/ssh-agent@v0.9.0
