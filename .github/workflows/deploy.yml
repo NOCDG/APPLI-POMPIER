@@ -167,7 +167,12 @@ jobs:
       - name: Synchroniser backend → serveur
         run: |
           # backend_out/backend/ → /opt/feuille-garde/app/backend/
-          rsync -az -e "ssh -p ${SSH_PORT}" backend_out/backend/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
+          rsync -az -e "ssh -p ${SSH_PORT}" backend_out/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
+
+      - name: Vérifier téléchargements
+        run: |
+          echo "=== backend_out ==="
+          ls -R backend_out
 
       - name: Déployer .env prod backend
         run: |
