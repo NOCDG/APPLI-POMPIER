@@ -189,9 +189,9 @@ jobs:
             MAIL_TLS=${MAIL_TLS}
             MAIL_SSL=${MAIL_SSL}
             TZ=${TZ}
+            "
             EOF
             chmod 600 /opt/feuille-garde/app/backend/.env
-            "
 
       # -------------------------
       #  Déploiement frontend
