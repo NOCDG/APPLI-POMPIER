@@ -152,7 +152,7 @@ jobs:
       
       - name: Synchroniser frontend (Vite dist) → serveur
         run: |
-          rsync -az -e "ssh -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
 
       - name: SSH key
@@ -171,8 +171,8 @@ jobs:
       - name: Synchroniser backend → serveur
         run: |
           # backend_out/backend/ → /opt/feuille-garde/app/backend/
-          rsync -az -e "ssh -p ${SSH_PORT}" backend_out/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
-
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -p ${SSH_PORT}" backend_out/backend/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
+          
       - name: Vérifier téléchargements
         run: |
           echo "=== backend_out ==="
@@ -181,7 +181,7 @@ jobs:
       - name: Déployer .env prod backend
         run: |
           # On génère /opt/feuille-garde/app/backend/.env à partir des secrets
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'cat > /opt/feuille-garde/app/backend/.env' <<EOF
+          ssh -o StrictHostKeyChecking=no -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'cat > /opt/feuille-garde/app/backend/.env' <<EOF
             POSTGRES_DB=${POSTGRES_DB}
             POSTGRES_USER=${POSTGRES_USER}
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -199,7 +199,7 @@ jobs:
             MAIL_SSL=${MAIL_SSL}
             TZ=${TZ}
           EOF
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "chmod 600 /opt/feuille-garde/app/backend/.env"
+          ssh -o StrictHostKeyChecking=no -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "chmod 600 /opt/feuille-garde/app/backend/.env"
 
       # -------------------------
       #  Déploiement frontend
@@ -215,7 +215,7 @@ jobs:
       - name: Configurer HTTPS (Let's Encrypt) — simplifié
         if: ${{ env.DOMAIN != '' && env.LETSENCRYPT_EMAIL != '' }}
         run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -s' <<EOF
+          ssh -o StrictHostKeyChecking=no -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -s' <<EOF
           set -eo pipefail
           
           DOMAIN="${DOMAIN}"
@@ -259,5 +259,5 @@ jobs:
 
       - name: Redémarrer backend + recharger Nginx
         run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde || true"
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl reload nginx || true"
+          ssh -o StrictHostKeyChecking=no -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde || true"
+          ssh -o StrictHostKeyChecking=no -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl reload nginx || true"
