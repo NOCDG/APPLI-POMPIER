@@ -201,54 +201,6 @@ chmod 600 /opt/feuille-garde/app/backend/.env
           # L'artifact contient frontend/dist → après download on a frontend_out/frontend/dist
           rsync -az -e "ssh -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
-      # -------------------------
-      #  Config HTTPS (optionnel)
-      # -------------------------
-      - name: Configurer HTTPS (Let's Encrypt) — simplifié
-        if: ${{ env.DOMAIN != '' && env.LETSENCRYPT_EMAIL != '' }}
-        run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -s' <<EOF
-          set -eo pipefail
-      
-          DOMAIN="${DOMAIN}"
-          DOMAIN_ALT="${DOMAIN_ALT}"
-          EMAIL="${LETSENCRYPT_EMAIL}"
-      
-          echo "[HTTPS] Domaine: \$DOMAIN / Alt: \$DOMAIN_ALT"
-      
-          # 1) Installer certbot si absent
-          if ! command -v certbot >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y certbot python3-certbot-nginx
-          fi
-      
-          # 2) Vérifier la conf Nginx de base
-          if [ ! -f /etc/nginx/sites-available/feuille_garde ]; then
-            echo "❌ /etc/nginx/sites-available/feuille_garde introuvable. Crée la conf HTTP de base avant HTTPS."
-            exit 1
-          fi
-      
-          # 3) Mettre à jour le server_name
-          sudo sed -i -E "s/server_name .*/server_name \$DOMAIN \$DOMAIN_ALT;/" /etc/nginx/sites-available/feuille_garde || true
-          sudo nginx -t && sudo systemctl reload nginx
-      
-          # 4) Certificat Let's Encrypt (émission si absent)
-          if [ -d "/etc/letsencrypt/live/\$DOMAIN" ] && [ -f "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem" ]; then
-            echo "[LE] Certificat déjà présent pour \$DOMAIN → skip émission."
-          else
-            if [ -n "\$DOMAIN_ALT" ]; then
-              sudo certbot --nginx -n --agree-tos --email "\$EMAIL" -d "\$DOMAIN" -d "\$DOMAIN_ALT" --redirect
-            else
-              sudo certbot --nginx -n --agree-tos --email "\$EMAIL" -d "\$DOMAIN" --redirect
-            fi
-          fi
-      
-          # 5) Test de renouvellement
-          sudo certbot renew --dry-run || true
-      
-          echo "[HTTPS] Terminé."
-          EOF
-
       - name: Redémarrer backend + recharger Nginx
         run: |
           ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -lc "
