@@ -173,25 +173,25 @@ jobs:
       - name: Déployer .env prod backend
         run: |
           ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "cat > /opt/feuille-garde/app/backend/.env << 'EOF'
-POSTGRES_DB=${POSTGRES_DB}
-POSTGRES_USER=${POSTGRES_USER}
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-POSTGRES_HOST=${POSTGRES_HOST}
-POSTGRES_PORT=${POSTGRES_PORT}
-JWT_SECRET=${JWT_SECRET}
-CORS_ORIGINS=[\"https://${DOMAIN}\"]
-MAIL_USERNAME=${MAIL_USERNAME}
-MAIL_PASSWORD=${MAIL_PASSWORD}
-MAIL_FROM=${MAIL_FROM}
-MAIL_FROM_NAME=${MAIL_FROM_NAME}
-MAIL_SERVER=${MAIL_SERVER}
-MAIL_PORT=${MAIL_PORT}
-MAIL_TLS=${MAIL_TLS}
-MAIL_SSL=${MAIL_SSL}
-TZ=${TZ}
-EOF
-chmod 600 /opt/feuille-garde/app/backend/.env
-"
+            POSTGRES_DB=${POSTGRES_DB}
+            POSTGRES_USER=${POSTGRES_USER}
+            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            POSTGRES_HOST=${POSTGRES_HOST}
+            POSTGRES_PORT=${POSTGRES_PORT}
+            JWT_SECRET=${JWT_SECRET}
+            CORS_ORIGINS=[\"https://${DOMAIN}\"]
+            MAIL_USERNAME=${MAIL_USERNAME}
+            MAIL_PASSWORD=${MAIL_PASSWORD}
+            MAIL_FROM=${MAIL_FROM}
+            MAIL_FROM_NAME=${MAIL_FROM_NAME}
+            MAIL_SERVER=${MAIL_SERVER}
+            MAIL_PORT=${MAIL_PORT}
+            MAIL_TLS=${MAIL_TLS}
+            MAIL_SSL=${MAIL_SSL}
+            TZ=${TZ}
+            EOF
+            chmod 600 /opt/feuille-garde/app/backend/.env
+            "
 
       # -------------------------
       #  Déploiement frontend
