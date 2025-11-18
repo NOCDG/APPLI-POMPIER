@@ -193,48 +193,7 @@ jobs:
             frontend_out/ \
             ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
-      # -------------------------
-      #  Config HTTPS (optionnel)
-      # -------------------------
-      - name: Configurer HTTPS (Let's Encrypt)
-        if: ${{ env.DOMAIN != '' && env.LETSENCRYPT_EMAIL != '' }}
-        run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -s' <<'EOF'
-          set -eo pipefail
-          
-          DOMAIN="${DOMAIN}"
-          DOMAIN_ALT="${DOMAIN_ALT}"
-          EMAIL="${LETSENCRYPT_EMAIL}"
-          
-          echo "[HTTPS] Domaine: $DOMAIN / Alt: $DOMAIN_ALT"
-          
-          if ! command -v certbot >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install -y certbot python3-certbot-nginx
-          fi
-          
-          if [ ! -f /etc/nginx/sites-available/feuille_garde ]; then
-            echo "❌ /etc/nginx/sites-available/feuille_garde introuvable."
-            exit 1
-          fi
-          
-          sudo sed -i -E "s/server_name .*/server_name $DOMAIN $DOMAIN_ALT;/" /etc/nginx/sites-available/feuille_garde || true
-          sudo nginx -t && sudo systemctl reload nginx
-          
-          if [ -d "/etc/letsencrypt/live/$DOMAIN" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-            echo "[LE] Certificat déjà présent pour $DOMAIN"
-          else
-            if [ -n "$DOMAIN_ALT" ]; then
-              sudo certbot --nginx -n --agree-tos --email "$EMAIL" -d "$DOMAIN" -d "$DOMAIN_ALT" --redirect
-            else
-              sudo certbot --nginx -n --agree-tos --email "$EMAIL" -d "$DOMAIN" --redirect
-            fi
-          fi
-          
-          sudo certbot renew --dry-run || true
-          echo "[HTTPS] Terminé."
-          EOF
-
+      
       - name: Redémarrer backend + recharger Nginx
         run: |
           ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde || true"
