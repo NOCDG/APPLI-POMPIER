@@ -152,8 +152,7 @@ jobs:
       
       - name: Synchroniser frontend (Vite dist) → serveur
         run: |
-          rsync -az -e "ssh -v -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
-
+          rsync -az -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
       - name: SSH key
         uses: webfactory/ssh-agent@v0.9.0
