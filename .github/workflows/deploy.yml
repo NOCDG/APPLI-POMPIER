@@ -49,11 +49,11 @@ jobs:
         run: |
           test -d dist || { echo "❌ Pas de dossier dist : build absent/échoué."; exit 1; }
   
+      # 🔹 CORRECTION : Chemin complet depuis la racine
       - name: Upload artifact frontend
         uses: actions/upload-artifact@v4
         with:
           name: frontend
-          # ⚠️ chemin RELATIF À LA RACINE DU REPO, pas au working-directory
           path: frontend/dist
           if-no-files-found: error
           retention-days: 7
@@ -87,7 +87,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend
-          # on embarque tout le dossier backend/
           path: backend
           if-no-files-found: error
           retention-days: 7
@@ -100,29 +99,20 @@ jobs:
     needs: [build-backend, build-frontend]
 
     env:
-      # --- domaine / certbot / nginx ---
-      DOMAIN: ${{ secrets.DOMAIN }}             # ex: pompier.gandour.org
-      DOMAIN_ALT: ${{ secrets.DOMAIN_ALT }}     # ex: www.pompier.gandour.org (optionnel)
+      DOMAIN: ${{ secrets.DOMAIN }}
+      DOMAIN_ALT: ${{ secrets.DOMAIN_ALT }}
       LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
-
-      # --- SSH ---
       SSH_HOST: ${{ secrets.SSH_HOST }}
       SSH_USER: ${{ secrets.SSH_USER }}
       SSH_PORT: ${{ secrets.SSH_PORT }}
       ENV_PROD: ${{ secrets.ENV_PROD }}
-
-      # --- DB ---
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
       POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
       POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
-
-      # --- JWT / APP ---
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       TZ: ${{ secrets.TZ }}
-
-      # --- MAIL ---
       MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
       MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
       MAIL_FROM: ${{ secrets.MAIL_FROM }}
@@ -148,11 +138,9 @@ jobs:
       - name: Vérifier téléchargements
         run: |
           echo "=== frontend_out ==="
-          ls -R frontend_out
-      
-      - name: Synchroniser frontend (Vite dist) → serveur
-        run: |
-          rsync -az -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
+          ls -lAh frontend_out/
+          echo "=== backend_out ==="
+          ls -lAh backend_out/
 
       - name: SSH key
         uses: webfactory/ssh-agent@v0.9.0
@@ -169,90 +157,81 @@ jobs:
       # -------------------------
       - name: Synchroniser backend → serveur
         run: |
-          # backend_out/backend/ → /opt/feuille-garde/app/backend/
-          rsync -az -e "ssh -p ${SSH_PORT}" backend_out/backend/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
-          
-      - name: Vérifier téléchargements
-        run: |
-          echo "=== backend_out ==="
-          ls -R backend_out
+          rsync -az -e "ssh -p ${SSH_PORT}" \
+            backend_out/ \
+            ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
 
       - name: Déployer .env prod backend
         run: |
-          # On génère /opt/feuille-garde/app/backend/.env à partir des secrets
           ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'cat > /opt/feuille-garde/app/backend/.env' <<EOF
-            POSTGRES_DB=${POSTGRES_DB}
-            POSTGRES_USER=${POSTGRES_USER}
-            POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-            POSTGRES_HOST=${POSTGRES_HOST}
-            POSTGRES_PORT=${POSTGRES_PORT}
-            JWT_SECRET=${JWT_SECRET}
-            CORS_ORIGINS=["https://${DOMAIN}"]
-            MAIL_USERNAME=${MAIL_USERNAME}
-            MAIL_PASSWORD=${MAIL_PASSWORD}
-            MAIL_FROM=${MAIL_FROM}
-            MAIL_FROM_NAME=${MAIL_FROM_NAME}
-            MAIL_SERVER=${MAIL_SERVER}
-            MAIL_PORT=${MAIL_PORT}
-            MAIL_TLS=${MAIL_TLS}
-            MAIL_SSL=${MAIL_SSL}
-            TZ=${TZ}
+          POSTGRES_DB=${POSTGRES_DB}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_HOST=${POSTGRES_HOST}
+          POSTGRES_PORT=${POSTGRES_PORT}
+          JWT_SECRET=${JWT_SECRET}
+          CORS_ORIGINS=["https://${DOMAIN}"]
+          MAIL_USERNAME=${MAIL_USERNAME}
+          MAIL_PASSWORD=${MAIL_PASSWORD}
+          MAIL_FROM=${MAIL_FROM}
+          MAIL_FROM_NAME=${MAIL_FROM_NAME}
+          MAIL_SERVER=${MAIL_SERVER}
+          MAIL_PORT=${MAIL_PORT}
+          MAIL_TLS=${MAIL_TLS}
+          MAIL_SSL=${MAIL_SSL}
+          TZ=${TZ}
           EOF
           ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "chmod 600 /opt/feuille-garde/app/backend/.env"
 
       # -------------------------
       #  Déploiement frontend
       # -------------------------
+      # 🔹 CORRECTION : Un seul rsync avec le bon chemin
       - name: Synchroniser frontend (Vite dist) → serveur
         run: |
-          # L'artifact contient frontend/dist → après download on a frontend_out/frontend/dist
-          rsync -az -e "ssh -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
+          rsync -az -e "ssh -p ${SSH_PORT}" \
+            frontend_out/ \
+            ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
       # -------------------------
       #  Config HTTPS (optionnel)
       # -------------------------
-      - name: Configurer HTTPS (Let's Encrypt) — simplifié
+      - name: Configurer HTTPS (Let's Encrypt)
         if: ${{ env.DOMAIN != '' && env.LETSENCRYPT_EMAIL != '' }}
         run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -s' <<EOF
+          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'bash -s' <<'EOF'
           set -eo pipefail
           
           DOMAIN="${DOMAIN}"
           DOMAIN_ALT="${DOMAIN_ALT}"
           EMAIL="${LETSENCRYPT_EMAIL}"
           
-          echo "[HTTPS] Domaine: \$DOMAIN / Alt: \$DOMAIN_ALT"
+          echo "[HTTPS] Domaine: $DOMAIN / Alt: $DOMAIN_ALT"
           
-          # 1) Installer certbot si absent
           if ! command -v certbot >/dev/null 2>&1; then
             sudo apt-get update
             sudo apt-get install -y certbot python3-certbot-nginx
           fi
           
-          # 2) Vérifier la conf Nginx de base
           if [ ! -f /etc/nginx/sites-available/feuille_garde ]; then
-            echo "❌ /etc/nginx/sites-available/feuille_garde introuvable. Crée la conf HTTP de base avant HTTPS."
+            echo "❌ /etc/nginx/sites-available/feuille_garde introuvable."
             exit 1
           fi
           
-          # 3) Mettre à jour le server_name
-          sudo sed -i -E "s/server_name .*/server_name \$DOMAIN \$DOMAIN_ALT;/" /etc/nginx/sites-available/feuille_garde || true
+          sudo sed -i -E "s/server_name .*/server_name $DOMAIN $DOMAIN_ALT;/" /etc/nginx/sites-available/feuille_garde || true
           sudo nginx -t && sudo systemctl reload nginx
           
-          # 4) Certificat Let's Encrypt (émission si absent)
-          if [ -d "/etc/letsencrypt/live/\$DOMAIN" ] && [ -f "/etc/letsencrypt/live/\$DOMAIN/fullchain.pem" ]; then
-            echo "[LE] Certificat déjà présent pour \$DOMAIN → skip émission."
+          if [ -d "/etc/letsencrypt/live/$DOMAIN" ] && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
+            echo "[LE] Certificat déjà présent pour $DOMAIN"
           else
-            if [ -n "\$DOMAIN_ALT" ]; then
-              sudo certbot --nginx -n --agree-tos --email "\$EMAIL" -d "\$DOMAIN" -d "\$DOMAIN_ALT" --redirect
+            if [ -n "$DOMAIN_ALT" ]; then
+              sudo certbot --nginx -n --agree-tos --email "$EMAIL" -d "$DOMAIN" -d "$DOMAIN_ALT" --redirect
             else
-              sudo certbot --nginx -n --agree-tos --email "\$EMAIL" -d "\$DOMAIN" --redirect
+              sudo certbot --nginx -n --agree-tos --email "$EMAIL" -d "$DOMAIN" --redirect
             fi
           fi
           
-          # 5) Test de renouvellement
           sudo certbot renew --dry-run || true
-          
           echo "[HTTPS] Terminé."
           EOF
 
