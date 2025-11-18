@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend      # 🔹 TOUT ce qui est 'run' se passe dans frontend/
+        working-directory: frontend
   
     steps:
       - name: Checkout
@@ -41,7 +41,7 @@ jobs:
   
       - name: Debug sortie
         run: |
-          pwd                    # doit afficher .../APPLI-POMPIER/frontend
+          pwd
           ls -lAh .
           ls -lAh dist || true
   
@@ -53,7 +53,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend
-          path: dist               # 🔹 dist, pas frontend/dist
+          # ⚠️ chemin RELATIF À LA RACINE DU REPO, pas au working-directory
+          path: frontend/dist
           if-no-files-found: error
           retention-days: 7
 
