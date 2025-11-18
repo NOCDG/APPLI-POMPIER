@@ -199,7 +199,7 @@ jobs:
       - name: Synchroniser frontend (Vite dist) → serveur
         run: |
           # L'artifact contient frontend/dist → après download on a frontend_out/frontend/dist
-          rsync -az -e "ssh -p ${SSH_PORT}" frontend_out/frontend/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
+          rsync -az -e "ssh -p ${SSH_PORT}" frontend_out/dist/ ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
       # -------------------------
       #  Config HTTPS (optionnel)
