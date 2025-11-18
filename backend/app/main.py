@@ -1,29 +1,36 @@
 from fastapi import FastAPI
-import os
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine, SessionLocal
-from app.api.routes import auth, users_me, health, personnel, competences, equipes, piquets, gardes, affectations, roles, settings
+from app.api.routes import (
+    auth,
+    users_me,
+    health,
+    personnel,
+    competences,
+    equipes,
+    piquets,
+    gardes,
+    affectations,
+    roles,
+)
 from app.db.seed_holidays_fr import seed as seed_holidays
 
 
 app = FastAPI(title="FEUILLE_GARDE API")
 
-
-# Autorise Vite en dev
-origins_env = os.getenv("CORS_ORIGINS", "")
-origins = [o.strip() for o in origins_env.split(",") if o.strip()]
-if not origins:
-    origins = ["https://pompier.gandour.org"]
-# 💡 En dev, autorise tout pour débloquer. Tu pourras resserrer plus tard.
+# --- CORS ---
+# On utilise directement la liste déjà parsée depuis settings.cors_list
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.cors_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.on_event("startup")
 def on_startup():
@@ -31,6 +38,8 @@ def on_startup():
     with SessionLocal() as s:
         seed_holidays(s)
 
+
+# --- Routes ---
 app.include_router(health.router)
 app.include_router(personnel.router)
 app.include_router(competences.router)
@@ -41,4 +50,3 @@ app.include_router(affectations.router)
 app.include_router(auth.router)
 app.include_router(users_me.router)
 app.include_router(roles.router)
-app.include_router(settings.router)

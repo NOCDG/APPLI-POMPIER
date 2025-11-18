@@ -1,46 +1,80 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from typing import List, Optional
 import json
 
+
 class Settings(BaseSettings):
-    database_url: str | None = None
-    postgres_db: str | None = None
-    postgres_user: str | None = None
-    postgres_password: str | None = None
+    # --- Base de données ---
+    database_url: Optional[str] = None
+    postgres_db: Optional[str] = None
+    postgres_user: Optional[str] = None
+    postgres_password: Optional[str] = None
     postgres_host: str = "localhost"
     postgres_port: int = 5432
-    JWT_SECRET: str
+
+    # --- JWT ---
+    JWT_SECRET: str  # obligatoire
     JWT_ALG: str = "HS256"
     JWT_ACCESS_TTL_MIN: int = 30
-    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
 
-    # On accepte CSV ("http://a,http://b") OU JSON (["http://a","http://b"])
-    cors_origins: str = "*"
+    # --- CORS ---
+    # Nom du champ = CORS_ORIGINS (comme tu l'utilises déjà)
+    # L'env CORS_ORIGINS sera bien pris en compte automatiquement
+    CORS_ORIGINS: str = "http://localhost:5173"
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+    )
 
     @property
     def db_url(self) -> str:
+        """
+        Retourne l'URL de BDD utilisable par SQLAlchemy.
+        - Si DATABASE_URL est défini → on l'utilise.
+        - Sinon, on reconstruit depuis POSTGRES_*.
+        """
         if self.database_url:
             return self.database_url
+
         if self.postgres_db and self.postgres_user and self.postgres_password:
-            return f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-        raise ValueError("Config BDD manquante : définis DATABASE_URL ou POSTGRES_*")
+            return (
+                f"postgresql+psycopg://{self.postgres_user}:"
+                f"{self.postgres_password}@{self.postgres_host}:"
+                f"{self.postgres_port}/{self.postgres_db}"
+            )
+
+        raise ValueError(
+            "Config BDD manquante : définis DATABASE_URL "
+            "ou POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD"
+        )
 
     @property
     def cors_list(self) -> List[str]:
-        raw = self.cors_origins.strip()
-        if raw == "*" or raw == "":
+        """
+        Retourne la liste des origines CORS à partir de CORS_ORIGINS.
+        On accepte :
+        - '*' ou vide → ['*']
+        - JSON: '["http://a","http://b"]'
+        - CSV:  'http://a,http://b'
+        """
+        raw = (self.CORS_ORIGINS or "").strip()
+
+        if raw in ("", "*"):
             return ["*"]
-        # JSON list ?
+
+        # JSON ?
         if raw.startswith("["):
             try:
                 lst = json.loads(raw)
                 return [str(x).strip() for x in lst if str(x).strip()]
             except Exception:
+                # si ça foire, on retombe sur CSV
                 pass
+
         # CSV fallback
         return [x.strip() for x in raw.split(",") if x.strip()]
 
+
+# Instance globale à utiliser partout
 settings = Settings()
-CORS_ORIGINS = settings.cors_list

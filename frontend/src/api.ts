@@ -6,9 +6,10 @@ import axios, { AxiosError } from "axios";
 ============================ */
 
 export const api = axios.create({
-  // En dev : mets VITE_API_URL="http://127.0.0.1:8000" (ou configure un proxy Vite)
-  baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000",
 });
+
+export default api;
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
