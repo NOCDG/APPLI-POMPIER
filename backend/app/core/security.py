@@ -107,14 +107,20 @@ def _normalize_roles_list(raw: Iterable) -> set[str]:
             roles.add(str(val).upper().strip())
     return roles
 
-def user_has_any_role(user: Personnel, roles: Iterable[RoleEnum]) -> bool:
-    """True si l'utilisateur possède au moins un des rôles passés."""
-    return len(user_roles_set(user).intersection(set(roles))) > 0
+def user_has_any_role(user: Personnel, *roles: RoleEnum) -> bool:
+    """
+    True si l'utilisateur possède au moins un des rôles passés.
+    On travaille en RoleEnum des deux côtés.
+    """
+    have = user_roles_set(user)          # set[RoleEnum] depuis la BDD
+    wanted = set(roles)                  # set[RoleEnum]
+    return bool(have & wanted)
+
 
 def ensure_admin_off(user: Personnel) -> None:
     """Autorise uniquement ADMIN / OFFICIER, sinon 403."""
     print("[DEBUG ensure_admin_off]", getattr(user, "id", None), getattr(user, "roles", None))
-    if not user_has_any_role(user, (RoleEnum.ADMIN, RoleEnum.OFFICIER)):
+    if not user_has_any_role(user, RoleEnum.ADMIN, RoleEnum.OFFICIER):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Réservé aux rôles ADMIN ou OFFICIER",
@@ -125,15 +131,11 @@ def ensure_can_validate_for_team(user: Personnel, equipe_id: int | None) -> int 
     Valider une FEUILLE (mois) :
       - ADMIN / OFFICIER : autorisés pour toute équipe (equipe_id optionnel).
       - CHEF_EQUIPE / ADJ_CHEF_EQUIPE : autorisés UNIQUEMENT pour leur équipe.
-        * Si equipe_id est None, on le déduit de user.equipe_id.
-        * Si equipe_id != user.equipe_id -> 403.
-      - Autres : 403.
-    Retourne l'equipe_id éventuellement déduit.
     """
-    if user_has_any_role(user, (RoleEnum.ADMIN, RoleEnum.OFFICIER)):
+    if user_has_any_role(user, RoleEnum.ADMIN, RoleEnum.OFFICIER):
         return equipe_id
 
-    if user_has_any_role(user, (RoleEnum.CHEF_EQUIPE, RoleEnum.ADJ_CHEF_EQUIPE)):
+    if user_has_any_role(user, RoleEnum.CHEF_EQUIPE, RoleEnum.ADJ_CHEF_EQUIPE):
         if user.equipe_id is None:
             raise HTTPException(status_code=400, detail="Votre compte n'est associé à aucune équipe")
         if equipe_id is None:
@@ -149,16 +151,16 @@ def ensure_can_modify_garde(user: Personnel, garde: Garde) -> None:
     Interdit de modifier une garde validée, sauf ADMIN / OFFICIER.
     À appeler dans les routes d'affectations (create/delete) et autres modifs.
     """
-    if getattr(garde, "validated", False) and not user_has_any_role(user, (RoleEnum.ADMIN, RoleEnum.OFFICIER)):
+    if getattr(garde, "validated", False) and not user_has_any_role(user, RoleEnum.ADMIN, RoleEnum.OFFICIER):
         # 423 Locked = ressource verrouillée (logique métier)
         raise HTTPException(status_code=423, detail="Garde validée : modification réservée à ADMIN/OFFICIER")
-    
-def user_has_any_role(user: Personnel, *roles: str) -> bool:
-    wanted = set(roles)
-    have = { (r.role.value if hasattr(r.role, "value") else str(r.role)) for r in (user.roles or []) }
-    return bool(wanted & have)
 
-def require_roles(*roles: str):
+    
+def require_roles(*roles: RoleEnum):
+    """
+    Dépendance FastAPI : bloque si l'utilisateur n'a aucun des rôles donnés.
+    Usage : @router.get(..., dependencies=[Depends(require_roles(RoleEnum.ADMIN))])
+    """
     def _dep(user: Personnel = Depends(get_current_user)):
         if not user_has_any_role(user, *roles):
             raise HTTPException(status_code=403, detail="Droits insuffisants")
