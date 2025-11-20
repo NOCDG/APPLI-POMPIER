@@ -435,3 +435,18 @@ export async function testEmail(to: string) {
   const r = await api.post("/settings/test-email", { to });
   return r.data;
 }
+
+// --- Mot de passe oublié / reset ---
+
+export async function forgotPassword(email: string) {
+  const r = await api.post("/auth/forgot-password", { email });
+  return r.data;
+}
+
+export async function resetPassword(token: string, newPassword: string) {
+  const r = await api.post("/auth/reset-password", {
+    token,
+    new_password: newPassword,
+  });
+  return r.data;
+}

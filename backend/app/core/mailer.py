@@ -147,3 +147,22 @@ def build_validation_html(mois_label: str, equipe_label: str, validateur: str) -
   </body>
 </html>
 """.strip()
+
+def send_email(
+    to: str,
+    subject: str,
+    text_body: str,
+    html_body: Optional[str] = None,
+) -> None:
+    """
+    Wrapper pour compatibilité avec les routes d'auth / reset password.
+
+    - `text_body` : version texte (pour les clients qui ne lisent pas le HTML)
+    - `html_body` : version HTML (si fournie, on privilégie le HTML)
+
+    Comme le reste de ton appli utilise `send_mail(to, subject, html_body)`,
+    on réutilise cette fonction ici.
+    """
+    body = html_body or text_body
+    # ⚠️ on suppose que send_mail(to, subject, body_html) existe déjà
+    send_mail(to, subject, body)

@@ -15,6 +15,7 @@ from app.api.routes import (
     gardes,
     affectations,
     roles,
+    password_reset,
 )
 from app.db.seed_holidays_fr import seed as seed_holidays
 
@@ -50,3 +51,4 @@ app.include_router(affectations.router)
 app.include_router(auth.router)
 app.include_router(users_me.router)
 app.include_router(roles.router)
+app.include_router(password_reset.router)

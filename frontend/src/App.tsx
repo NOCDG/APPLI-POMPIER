@@ -20,7 +20,9 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import { AuthProvider } from './auth/AuthContext'
 import Home from './pages/Home'
 import { RoleGuard } from './auth/guards'
-import AdminSettingsPage from './pages/AdminSettingsPage'   // ⬅️ NEW
+import AdminSettingsPage from './pages/AdminSettingsPage'
+import ForgotPassword from "./pages/ForgotPassword"
+import ResetPassword from "./pages/ResetPassword"
 
 function CalendarView() {
   const now = new Date()
@@ -229,6 +231,8 @@ function AppRoutes() {
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
     </Routes>
   )
 }

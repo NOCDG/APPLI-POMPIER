@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { Link } from "react-router-dom";
 
 export default function Login() {
   const { login } = useAuth();
@@ -99,7 +100,9 @@ export default function Login() {
         </form>
 
         <div className="login-footer">
-          <a className="muted" href="#" onClick={(e)=>e.preventDefault()}>Mot de passe oublié ?</a>
+              <p className="login-forgot">
+              <Link to="/forgot-password">Mot de passe oublié ?</Link>
+            </p>
           <span className="muted">v1.0 · FEUILLE_GARDE</span>
         </div>
       </div>
