@@ -185,10 +185,6 @@ def ensure_can_validate_for_team(user: Personnel, equipe_id: int | None) -> int 
     Valider une FEUILLE (mois) :
       - ADMIN / OFFICIER : autorisés pour toute équipe (equipe_id optionnel).
       - CHEF_EQUIPE / ADJ_CHEF_EQUIPE : autorisés UNIQUEMENT pour leur équipe.
-        * Si equipe_id est None, on le déduit de user.equipe_id.
-        * Si equipe_id != user.equipe_id -> 403.
-      - Autres : 403.
-    Retourne l'equipe_id éventuellement déduit.
     """
     if user_has_any_role(user, RoleEnum.ADMIN, RoleEnum.OFFICIER):
         return equipe_id
