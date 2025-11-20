@@ -23,10 +23,8 @@ RESET_EXPIRE_MINUTES = 30                  # 30 minutes de validité
 # ====== PASSWORD HASHING ======
 _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-
 def hash_password(password: str) -> str:
     return _pwd_ctx.hash(password)
-
 
 def verify_password(plain: str, hashed: str) -> bool:
     return _pwd_ctx.verify(plain, hashed)
