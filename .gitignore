@@ -16,6 +16,7 @@ backend/.mypy_cache/
 backend/.ruff_cache/
 backend/venv
 backend/.env
+backend/node_modules
 
 # Global
 .env

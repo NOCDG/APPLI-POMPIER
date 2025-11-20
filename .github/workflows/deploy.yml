@@ -1,0 +1,200 @@
+name: CI/CD FEUILLE_GARDE (Vite)
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PY_VERSION: "3.11"
+  NODE_VERSION: "20"
+
+jobs:
+  # =========================
+  #  BUILD FRONTEND (VITE)
+  # =========================
+  build-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+  
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+  
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+  
+      - name: Install deps
+        run: npm ci
+  
+      - name: Build (Vite)
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: npm run build
+  
+      - name: Debug sortie
+        run: |
+          pwd
+          ls -lAh .
+          ls -lAh dist || true
+  
+      - name: Vérification stricte (doit exister)
+        run: |
+          test -d dist || { echo "❌ Pas de dossier dist : build absent/échoué."; exit 1; }
+  
+      # 🔹 CORRECTION : Chemin complet depuis la racine
+      - name: Upload artifact frontend
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  # =========================
+  #  BUILD BACKEND
+  # =========================
+  build-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PY_VERSION }}
+
+      - name: Install deps (liste)
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip freeze | sed -e 's/^/  - /'
+
+      - name: Lister backend
+        run: ls -lAh backend
+
+      - name: Upload artifact backend
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend
+          path: backend
+          if-no-files-found: error
+          retention-days: 7
+
+  # =========================
+  #  DEPLOY SUR LE SERVEUR
+  # =========================
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-backend, build-frontend]
+
+    env:
+      DOMAIN: ${{ secrets.DOMAIN }}
+      DOMAIN_ALT: ${{ secrets.DOMAIN_ALT }}
+      LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      ENV_PROD: ${{ secrets.ENV_PROD }}
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+      POSTGRES_HOST: ${{ secrets.POSTGRES_HOST }}
+      POSTGRES_PORT: ${{ secrets.POSTGRES_PORT }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      TZ: ${{ secrets.TZ }}
+      MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+      MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
+      MAIL_FROM_NAME: ${{ secrets.MAIL_FROM_NAME }}
+      MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+      MAIL_PORT: ${{ secrets.MAIL_PORT }}
+      MAIL_TLS: ${{ secrets.MAIL_TLS }}
+      MAIL_SSL: ${{ secrets.MAIL_SSL }}
+
+    steps:
+      - name: Download backend
+        uses: actions/download-artifact@v4
+        with:
+          name: backend
+          path: backend_out
+
+      - name: Download frontend
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend
+          path: frontend_out
+      
+      - name: Vérifier téléchargements
+        run: |
+          echo "=== frontend_out ==="
+          ls -lAh frontend_out/
+          echo "=== backend_out ==="
+          ls -lAh backend_out/
+
+      - name: SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p "${SSH_PORT}" -H "${SSH_HOST}" >> ~/.ssh/known_hosts
+
+      # -------------------------
+      #  Déploiement backend
+      # -------------------------
+      - name: Synchroniser backend → serveur
+        run: |
+          rsync -az -e "ssh -p ${SSH_PORT}" \
+            backend_out/ \
+            ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
+
+      - name: Déployer .env prod backend
+        run: |
+          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'cat > /opt/feuille-garde/app/backend/.env' <<EOF
+          POSTGRES_DB=${POSTGRES_DB}
+          POSTGRES_USER=${POSTGRES_USER}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          POSTGRES_HOST=${POSTGRES_HOST}
+          POSTGRES_PORT=${POSTGRES_PORT}
+          JWT_SECRET=${JWT_SECRET}
+          CORS_ORIGINS=["https://${DOMAIN}"]
+          MAIL_USERNAME=${MAIL_USERNAME}
+          MAIL_PASSWORD=${MAIL_PASSWORD}
+          MAIL_FROM=${MAIL_FROM}
+          MAIL_FROM_NAME=${MAIL_FROM_NAME}
+          MAIL_SERVER=${MAIL_SERVER}
+          MAIL_PORT=${MAIL_PORT}
+          MAIL_TLS=${MAIL_TLS}
+          MAIL_SSL=${MAIL_SSL}
+          TZ=${TZ}
+          EOF
+          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "chmod 600 /opt/feuille-garde/app/backend/.env"
+
+      # -------------------------
+      #  Déploiement frontend
+      # -------------------------
+      # 🔹 CORRECTION : Un seul rsync avec le bon chemin
+      - name: Synchroniser frontend (Vite dist) → serveur
+        run: |
+          rsync -az -e "ssh -p ${SSH_PORT}" \
+            frontend_out/ \
+            ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
+
+      
+      - name: Redémarrer backend + recharger Nginx
+        run: |
+          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde || true"
+          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl reload nginx || true"
