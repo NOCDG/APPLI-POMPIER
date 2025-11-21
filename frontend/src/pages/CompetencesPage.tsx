@@ -34,7 +34,7 @@ export default function CompetencesPage(){
       if (typeof apiUpdateCompetence === 'function') {
         await apiUpdateCompetence(editingId, { code: editCode.trim().toUpperCase(), libelle: editLibelle.trim() })
       } else {
-        await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/competences/${editingId}`, {
+        await fetch(`${import.meta.env.VITE_API_URL}/competences/${editingId}`, {
           method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code: editCode.trim().toUpperCase(), libelle: editLibelle.trim() })
         })
       }
@@ -50,7 +50,7 @@ export default function CompetencesPage(){
       if (typeof apiDeleteCompetence === 'function') {
         await apiDeleteCompetence(id)
       } else {
-        await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/competences/${id}`, { method:'DELETE' })
+        await fetch(`${import.meta.env.VITE_API_URL}/competences/${id}`, { method:'DELETE' })
       }
       // rafraîchissement optimiste
       setItems(prev=>prev.filter(x=>x.id!==id))
