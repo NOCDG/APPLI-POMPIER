@@ -48,7 +48,12 @@ jobs:
       - name: Vérification stricte (doit exister)
         run: |
           test -d dist || { echo "❌ Pas de dossier dist : build absent/échoué."; exit 1; }
-  
+      - name: Debug VITE_API_BASE_URL
+        run: echo "VITE_API_BASE_URL=$VITE_API_BASE_URL"
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+
+    
       # 🔹 CORRECTION : Chemin complet depuis la racine
       - name: Upload artifact frontend
         uses: actions/upload-artifact@v4
