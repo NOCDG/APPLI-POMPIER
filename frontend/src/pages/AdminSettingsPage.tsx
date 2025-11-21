@@ -27,7 +27,7 @@ const EMPTY_SETTINGS: AppSettings = {
   MAIL_FROM_NAME: "GARDE SPV - CSP SAINT-LÔ",
   MAIL_TLS: true,
   MAIL_SSL: false,
-  VITE_API_URL: "http://localhost:8000",
+  VITE_API_URL: "https://pompier.gandour.org/api",
   mail_templates: {
     admin_validation_subject: "Validation feuille de garde – {{mois}} – {{equipe}}",
     admin_validation_html: "<p>La feuille du mois de <b>{{mois}}</b> a été validée par <b>{{validateur}}</b> pour l’équipe <b>{{equipe}}</b>.</p>",
