@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from enum import Enum as PyEnum
+from typing import Optional
 import enum
 
 from sqlalchemy import (
@@ -155,6 +156,9 @@ class Affectation(Base):
     personnel_id: Mapped[int] = mapped_column(
         ForeignKey("personnels.id", ondelete="CASCADE"), index=True
     )
+
+    # 🆕 statut utilisé pour cette affectation : "pro" ou "volontaire"
+    statut_service: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
