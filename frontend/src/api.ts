@@ -33,15 +33,27 @@ export function apiErrorMessage(err: unknown): string {
 export type Role = "ADMIN" | "OFFICIER" | "OPE" | "CHEF_EQUIPE" | "ADJ_CHEF_EQUIPE" | "AGENT";
 export type UserMe = { id: number; email: string; full_name?: string; equipe_id?: number|null; roles: Role[]; };
 
+export type Statut = "pro" | "volontaire" | "double";
+
 export type Personnel = {
   id: number;
-  nom: string; prenom: string;
-  email?: string|null; telephone?: string|null; statut?: string|null;
-  equipe_id?: number|null;
+  nom: string;
+  prenom: string;
+  grade: string;                     // 🆕 présent côté backend & front
+  email: string;
+  statut: Statut;                    // 🆕 plus un string libre
+  equipe_id?: number | null;
 };
 
-export type PersonnelCreatePayload =
-  Omit<Personnel, "id"> & { roles?: Role[] };
+export type PersonnelCreatePayload = {
+  nom: string;
+  prenom: string;
+  grade: string;
+  email: string;
+  statut: Statut;
+  equipe_id?: number | null;
+  roles?: Role[];
+};
 
 export type PersonnelCreateResponse = {
   personnel: Personnel;
@@ -128,13 +140,21 @@ export async function getPersonnel(id: number): Promise<Personnel>{
   const r = await api.get(`/personnels/${id}`); return r.data;
 }
 
-export async function createPersonnel(payload: Partial<PersonnelCreatePayload>): Promise<PersonnelCreateResponse>{
+export async function createPersonnel(
+  payload: PersonnelCreatePayload
+): Promise<PersonnelCreateResponse> {
   const r = await api.post("/personnels", payload);
   return r.data as PersonnelCreateResponse;
 }
-export async function updatePersonnel(id: number, payload: Partial<Personnel>): Promise<Personnel>{
-  const r = await api.put(`/personnels/${id}`, payload); return r.data;
+
+export async function updatePersonnel(
+  id: number,
+  payload: Partial<Personnel>
+): Promise<Personnel> {
+  const r = await api.put(`/personnels/${id}`, payload);
+  return r.data;
 }
+
 export async function deletePersonnel(id: number){
   const r = await api.delete(`/personnels/${id}`); return r.data;
 }
