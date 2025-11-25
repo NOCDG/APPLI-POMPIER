@@ -51,7 +51,7 @@ type Personnel = {
   nom: string
   prenom: string
   equipe_id?: number | null
-  statut?: string | null       // 🆕 pour gérer le double statut
+  statut?: string | null       // gérer le double statut
 }
 
 type StatutService = 'pro' | 'volontaire'
@@ -76,6 +76,17 @@ export default function PlanningPage() {
   const [gardes, setGardes] = useState<Garde[]>([])
   const [affByGarde, setAffByGarde] = useState<Record<number, Affectation[]>>({})
   const [allPersonnels, setAllPersonnels] = useState<Personnel[]>([])
+
+  // 🆕 map id_equipe -> couleur
+  const equipeColorMap = useMemo(() => {
+    const m: Record<number, string> = {}
+    equipes.forEach(eq => {
+      if (eq.couleur) {
+        m[eq.id] = eq.couleur
+      }
+    })
+    return m
+  }, [equipes])
 
   // choix du statut pour un double
   const [statutChoice, setStatutChoice] = useState<{
@@ -192,7 +203,7 @@ export default function PlanningPage() {
     }
   }
 
-  // 🆕 choisit le statut pour un double via 2 boutons
+  // choisit le statut pour un double via 2 boutons
   async function confirmStatutChoice(choice: StatutService) {
     if (!statutChoice) return
     try {
@@ -217,7 +228,7 @@ export default function PlanningPage() {
     setStatutChoice(null)
   }
 
-  // 🆕 ajout avec gestion du double statut → ouvre la popin de choix si besoin
+  // ajout avec gestion du double statut → ouvre la popin de choix si besoin
   async function add(personnel_id: number) {
     if (!panel) return
     try {
@@ -228,10 +239,8 @@ export default function PlanningPage() {
       if (perso && perso.statut) {
         const st = (perso.statut || '').toLowerCase()
         if (st === 'pro' || st === 'volontaire') {
-          // simple : un seul statut
           statut_service = st as StatutService
         } else if (st === 'double') {
-          // on ouvre la popin de choix, et on s'arrête là
           setStatutChoice({
             perso,
             gardeId: panel.garde.id,
@@ -350,6 +359,33 @@ export default function PlanningPage() {
               const aff = affFor(g.id, p.id)
               const perso = aff ? (allPersonnels.find(x => x.id === aff.personnel_id) || null) : null
               const personaTxt = perso ? personaShort(perso) : ''
+
+              // PRO pour cette garde ? (statut_service ou statut global)
+              const isPro =
+                (aff?.statut_service === 'pro') ||
+                ((perso?.statut || '').toLowerCase() === 'pro')
+
+              // 🎨 couleur de l'équipe de l'AGENT (et plus celle de la garde)
+              const agentEquipeColor =
+                (perso?.equipe_id && equipeColorMap[perso.equipe_id])
+                  ? equipeColorMap[perso.equipe_id]
+                  : undefined
+
+              // pastille ovale : fond équipe de l'agent, ou violet si PRO
+              const pillStyle: React.CSSProperties = aff ? {
+                backgroundColor: isPro ? 'violet' : (agentEquipeColor ?? '#444'),
+                color: 'black',
+                borderRadius: 999,
+                padding: '2px 8px',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                display: 'inline-block',
+                maxWidth: 120,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              } : {}
+
               return (
                 <div key={p.id} className="pl-row">
                   <div className="pl-piquet">{piquetCode(p)}</div>
@@ -366,7 +402,7 @@ export default function PlanningPage() {
                     }}
                   >
                     {aff ? (
-                      <span className="pl-pill">{personaTxt}</span>
+                      <span className="pl-pill" style={pillStyle}>{personaTxt}</span>
                     ) : (
                       <span className="pl-empty-small">—</span>
                     )}
@@ -396,6 +432,7 @@ export default function PlanningPage() {
               )
             })}
           </div>
+
         </div>
       </div>
     )
