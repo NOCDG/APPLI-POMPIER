@@ -48,7 +48,7 @@ export default function PersonnelsPage() {
     prenom: '',
     grade: '',
     email: '',
-    statut: 'volontaire',
+    statut: 'volontaire',   // 🆕 par défaut volontaire, mais on pourra choisir "double"
     equipe_id: '' as any,
   })
 
@@ -63,6 +63,10 @@ export default function PersonnelsPage() {
 
   const [editingRolesId, setEditingRolesId] = useState<number | null>(null)
   const [rolesDraft, setRolesDraft] = useState<Role[]>([])
+
+  // 🆕 Édition inline du STATUT
+  const [editingStatutId, setEditingStatutId] = useState<number | null>(null)
+  const [statutDraft, setStatutDraft] = useState<string>('volontaire')
 
   // --- Modal mot de passe temporaire ---
   const [tempPasswordModal, setTempPasswordModal] = useState<{ visible: boolean; pwd?: string }>({ visible: false })
@@ -201,6 +205,25 @@ export default function PersonnelsPage() {
     setEditingRolesId(null)
   }
 
+  // 🆕 édition inline : STATUT
+  function startEditStatut(p: any) {
+    setEditingStatutId(p.id)
+    setStatutDraft(p.statut ?? 'volontaire')
+  }
+  async function saveStatut(p: any) {
+    const newStatut = (statutDraft ?? '').trim().toLowerCase()
+    if (!['pro', 'volontaire', 'double'].includes(newStatut)) {
+      alert("Statut invalide (pro / volontaire / double)")
+      setEditingStatutId(null)
+      return
+    }
+    if (newStatut !== (p.statut ?? '').toLowerCase()) {
+      const updated = await updatePersonnel(p.id, { statut: newStatut as any })
+      setItems(prev => prev.map(x => x.id === p.id ? { ...x, statut: updated.statut } : x))
+    }
+    setEditingStatutId(null)
+  }
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     if (!q) return items
@@ -212,6 +235,16 @@ export default function PersonnelsPage() {
   // Helpers affichage compétences (compat libellés/nom)
   const compCode = (pc: any) => pc?.competence?.code ?? pc?.competence?.nom ?? `#${pc?.competence_id}`
   const compLabel = (pc: any) => pc?.competence?.libelle ?? pc?.competence?.nom ?? ''
+
+  // 🆕 helper affichage statut
+  function humanStatut(st: string | undefined) {
+    if (!st) return '—'
+    const s = st.toLowerCase()
+    if (s === 'pro') return 'Professionnel'
+    if (s === 'volontaire') return 'Volontaire'
+    if (s === 'double') return 'Double statut'
+    return st
+  }
 
   // Copier dans le presse-papiers (modal mdp)
   async function copyToClipboard(text: string) {
@@ -270,10 +303,15 @@ export default function PersonnelsPage() {
 
           <div className="pg-field">
             <label className="pg-label">🏷️ Statut</label>
-            <select className="pg-input" value={form.statut}
-              onChange={e => setForm({ ...form, statut: e.target.value })}>
+            <select
+              className="pg-input"
+              value={form.statut}
+              onChange={e => setForm({ ...form, statut: e.target.value })}
+            >
               <option value="volontaire">Volontaire</option>
               <option value="pro">Professionnel</option>
+              {/* 🆕 troisième option */}
+              <option value="double">Double statut</option>
             </select>
           </div>
 
@@ -407,7 +445,27 @@ export default function PersonnelsPage() {
                       )}
 
                       {/* Statut + Rôles */}
-                      {' '}• 🏷️ {p.statut}
+                      {' '}• 🏷️{' '}
+                      {editingStatutId === p.id ? (
+                        <>
+                          <select
+                            className="pg-input-inline"
+                            value={statutDraft}
+                            onChange={e => setStatutDraft(e.target.value)}
+                            onBlur={() => saveStatut(p)}
+                            onKeyDown={e => (e.key === 'Enter') && saveStatut(p)}
+                          >
+                            <option value="volontaire">Volontaire</option>
+                            <option value="pro">Professionnel</option>
+                            <option value="double">Double statut</option>
+                          </select>
+                        </>
+                      ) : (
+                        <span className="pg-editable" onClick={() => startEditStatut(p)}>
+                          {humanStatut(p.statut)} ✎
+                        </span>
+                      )}
+
                       {' '}• 🎭{' '}
                       {editingRolesId === p.id ? (
                         <>

@@ -21,6 +21,7 @@ from app.db.base import Base
 class Statut(PyEnum):
     PRO = "pro"
     VOLONTAIRE = "volontaire"
+    DOUBLE = "double"
 
 
 class Slot(PyEnum):
