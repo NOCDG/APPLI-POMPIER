@@ -43,6 +43,7 @@ type Affectation = {
   piquet_id: number
   personnel_id: number
   created_at?: string
+  statut_service?: 'pro' | 'volontaire' | null
 }
 
 type Personnel = {
@@ -50,7 +51,10 @@ type Personnel = {
   nom: string
   prenom: string
   equipe_id?: number | null
+  statut?: string | null       // 🆕 pour gérer le double statut
 }
+
+type StatutService = 'pro' | 'volontaire'
 
 export default function PlanningPage() {
   const now = new Date()
@@ -73,14 +77,21 @@ export default function PlanningPage() {
   const [affByGarde, setAffByGarde] = useState<Record<number, Affectation[]>>({})
   const [allPersonnels, setAllPersonnels] = useState<Personnel[]>([])
 
+  // choix du statut pour un double
+  const [statutChoice, setStatutChoice] = useState<{
+    perso: Personnel
+    gardeId: number
+    piquetId: number
+  } | null>(null)
+
   // ---- droits / verrouillage ----
   const [isMonthValidated, setIsMonthValidated] = useState(false)
-  const canAdminOff = hasAnyRole('ADMIN', 'OFFICIER')        // peut modifier/dévalider après validation
-  const canModify = !isMonthValidated || canAdminOff          // autorisation effective sur les affectations
-  const showActions = canModify;
-  const canValidate = isChef || canAdminOff                   // qui a le droit de valider
+  const canAdminOff = hasAnyRole('ADMIN', 'OFFICIER')
+  const canModify = !isMonthValidated || canAdminOff
+  const showActions = canModify
+  const canValidate = isChef || canAdminOff
 
-  // --- helpers d'affichage des noms ---
+  // --- helpers noms ---
   function formatShortName(nom?: string, prenom?: string) {
     const n = (nom ?? '').trim().toUpperCase()
     const p = (prenom ?? '').trim()
@@ -91,14 +102,14 @@ export default function PlanningPage() {
     return formatShortName(p.nom, p.prenom)
   }
 
-  // filtre équipe (si chef : uniquement son équipe)
+  // filtre équipe
   const filteredGardes = useMemo(() => {
     if (!equipeId) return gardes
     const eid = Number(equipeId)
     return gardes.filter(g => g.equipe_id === eid)
   }, [gardes, equipeId])
 
-  // tri mois gauche→droite (date croissante puis JOUR avant NUIT)
+  // tri gardes
   const gardesSorted = useMemo(() => {
     const order = (s: Slot) => (s === 'JOUR' ? 0 : 1)
     const copy = [...filteredGardes]
@@ -121,12 +132,13 @@ export default function PlanningPage() {
   useEffect(() => {
     ; (async () => {
       const [eqs, pqs, persons] = await Promise.all([listEquipes(), listPiquets(), listPersonnels()])
-      setEquipes(eqs); setPiquets(pqs); setAllPersonnels(persons)
+      setEquipes(eqs)
+      setPiquets(pqs)
+      setAllPersonnels(persons as any)
     })()
   }, [])
 
   async function loadMonth() {
-    // équipe obligatoire si chef (verrouille sur son équipe)
     const equipeFilter =
       isChef ? (myEquipeId ?? undefined)
         : (equipeId !== '' ? Number(equipeId) : undefined)
@@ -136,7 +148,7 @@ export default function PlanningPage() {
 
     const map: Record<number, Affectation[]> = {}
     await Promise.all(gs.map(async g => {
-      map[g.id] = await listAffectations(g.id)
+      map[g.id] = await listAffectations(g.id) as any
     }))
     setAffByGarde(map)
   }
@@ -144,7 +156,6 @@ export default function PlanningPage() {
   useEffect(() => { loadMonth() }, [year, month, equipeId, isChef, myEquipeId])
 
   useEffect(() => {
-    // Mois validé si au moins une garde et que toutes sont validated === true
     const all = filteredGardes
     const validated = all.length > 0 && all.every(g => (g as any).validated === true)
     setIsMonthValidated(validated)
@@ -175,18 +186,70 @@ export default function PlanningPage() {
     try {
       setLoadingSuggests(true)
       const res = await suggestPersonnels(g.id, p.id)
-      setSuggests(res)
+      setSuggests(res as any)
     } finally {
       setLoadingSuggests(false)
     }
   }
 
+  // 🆕 choisit le statut pour un double via 2 boutons
+  async function confirmStatutChoice(choice: StatutService) {
+    if (!statutChoice) return
+    try {
+      await createAffectation({
+        garde_id: statutChoice.gardeId,
+        piquet_id: statutChoice.piquetId,
+        personnel_id: statutChoice.perso.id,
+        statut_service: choice,
+      } as any)
+
+      const updated = await listAffectations(statutChoice.gardeId)
+      setAffByGarde(prev => ({ ...prev, [statutChoice.gardeId]: updated as any }))
+      setPanel(null)
+    } catch (e: any) {
+      alert(e?.message || 'Affectation impossible')
+    } finally {
+      setStatutChoice(null)
+    }
+  }
+
+  function cancelStatutChoice() {
+    setStatutChoice(null)
+  }
+
+  // 🆕 ajout avec gestion du double statut → ouvre la popin de choix si besoin
   async function add(personnel_id: number) {
     if (!panel) return
     try {
-      await createAffectation({ garde_id: panel.garde.id, piquet_id: panel.piquet.id, personnel_id })
+      const perso = allPersonnels.find(p => p.id === personnel_id) || null
+
+      let statut_service: StatutService | undefined
+
+      if (perso && perso.statut) {
+        const st = (perso.statut || '').toLowerCase()
+        if (st === 'pro' || st === 'volontaire') {
+          // simple : un seul statut
+          statut_service = st as StatutService
+        } else if (st === 'double') {
+          // on ouvre la popin de choix, et on s'arrête là
+          setStatutChoice({
+            perso,
+            gardeId: panel.garde.id,
+            piquetId: panel.piquet.id,
+          })
+          return
+        }
+      }
+
+      await createAffectation({
+        garde_id: panel.garde.id,
+        piquet_id: panel.piquet.id,
+        personnel_id,
+        statut_service,
+      } as any)
+
       const updated = await listAffectations(panel.garde.id)
-      setAffByGarde(prev => ({ ...prev, [panel.garde.id]: updated }))
+      setAffByGarde(prev => ({ ...prev, [panel.garde.id]: updated as any }))
       setPanel(null)
     } catch (e: any) {
       alert(e?.message || 'Affectation impossible')
@@ -198,7 +261,7 @@ export default function PlanningPage() {
     if (!confirm('Supprimer cette affectation ?')) return
     await deleteAffectation(aff.id)
     const updated = await listAffectations(aff.garde_id)
-    setAffByGarde(prev => ({ ...prev, [aff.garde_id]: updated }))
+    setAffByGarde(prev => ({ ...prev, [aff.garde_id]: updated as any }))
   }
 
   const filteredManual = useMemo(() => {
@@ -219,12 +282,10 @@ export default function PlanningPage() {
         : (equipeId !== '' ? Number(equipeId) : undefined)
 
     if (nextChecked) {
-      // VALIDATION
       if (!canValidate) {
         alert("Vous n'avez pas les droits pour valider.")
         return
       }
-      // si non-chef (ex: admin) sans équipe choisie, on évite un call global par erreur
       if (!isChef && !equipeFilter) {
         alert("Veuillez choisir une équipe avant de valider.")
         return
@@ -239,7 +300,6 @@ export default function PlanningPage() {
       await loadMonth()
       return
     } else {
-      // DEVALIDATION
       if (!canAdminOff) {
         alert("Dévalidation réservée à ADMIN et OFFICIER.")
         return
@@ -255,7 +315,7 @@ export default function PlanningPage() {
     }
   }
 
-  // --- rendu d'une “carte garde” (réutilise la structure existante) ---
+  // --- rendu d'une “carte garde” ---
   const renderCard = (g: Garde | null) => {
     if (!g) return null
     const cardLocked = !canModify
@@ -271,7 +331,18 @@ export default function PlanningPage() {
         <div className={`pl-garde ${g.slot === 'JOUR' ? 'day' : 'night'} ${cardLocked ? 'locked' : ''}`}>
           <div className="pl-garde-head">
             <b>{g.slot}</b>
-            {g.validated && <span className="pl-chip small" title={g.validated_at ? `Validée le ${new Date(g.validated_at).toLocaleString()}` : 'Validée'}>validée</span>}
+            {g.validated && (
+              <span
+                className="pl-chip small"
+                title={
+                  g.validated_at
+                    ? `Validée le ${new Date(g.validated_at).toLocaleString()}`
+                    : 'Validée'
+                }
+              >
+                validée
+              </span>
+            )}
           </div>
 
           <div className="pl-rows">
@@ -282,11 +353,17 @@ export default function PlanningPage() {
               return (
                 <div key={p.id} className="pl-row">
                   <div className="pl-piquet">{piquetCode(p)}</div>
-                  {/* colonne NOM + largeur réduite */}
                   <div
                     className="pl-assignee"
                     title={piquetLib(p)}
-                    style={{ width: 120, minWidth: 110, maxWidth: 140, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    style={{
+                      width: 120,
+                      minWidth: 110,
+                      maxWidth: 140,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
                   >
                     {aff ? (
                       <span className="pl-pill">{personaTxt}</span>
@@ -346,7 +423,9 @@ export default function PlanningPage() {
 
         <select value={month} onChange={e => setMonth(Number(e.target.value))}>
           {Array.from({ length: 12 }, (_, i) => i + 1).map(m =>
-            <option key={m} value={m}>{new Date(2000, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })}</option>
+            <option key={m} value={m}>
+              {new Date(2000, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })}
+            </option>
           )}
         </select>
 
@@ -358,7 +437,7 @@ export default function PlanningPage() {
 
         <button className="pl-btn" onClick={loadMonth}>🔄 Recharger</button>
 
-        {/* --- Validation / Dévalidation du mois --- */}
+        {/* Validation / dévalidation */}
         <label
           className="pl-switch"
           title={
@@ -375,7 +454,6 @@ export default function PlanningPage() {
                 await handleToggleValidation(e.target.checked)
               } catch (err: any) {
                 alert(err?.message || "Erreur lors de la mise à jour de la validation")
-                // recharger pour resynchroniser l'état
                 await loadMonth()
               }
             }}
@@ -393,10 +471,8 @@ export default function PlanningPage() {
         )}
       </div>
 
-      {/* Ruban horizontal du mois (gauche → droite) */}
-      <div
-        className="pl-month-strip pl-fullbleed"
-      >
+      {/* Ruban horizontal du mois */}
+      <div className="pl-month-strip pl-fullbleed">
         {gardesSorted.length === 0 && (
           <div className="pl-empty">Aucune garde pour ce mois/équipe.</div>
         )}
@@ -454,7 +530,41 @@ export default function PlanningPage() {
         </div>
       )}
 
-      {/* Actions de génération (si besoin) */}
+      {/* Popin choix statut pour double statut */}
+      {statutChoice && (
+        <div className="pl-panel pl-panel-overlay">
+          <div className="pl-panel-card">
+            <div className="pl-panel-head">
+              <div>
+                <div className="pl-panel-title">
+                  Choisir le statut de service
+                </div>
+                <div className="pl-panel-sub">
+                  {statutChoice.perso.prenom} {statutChoice.perso.nom} est en double statut.
+                </div>
+              </div>
+              <button className="pl-x" onClick={cancelStatutChoice}>✖</button>
+            </div>
+
+            <div className="pl-panel-block" style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                className="pl-btn"
+                onClick={() => confirmStatutChoice('pro')}
+              >
+                👨‍🚒 Professionnel
+              </button>
+              <button
+                className="pl-btn"
+                onClick={() => confirmStatutChoice('volontaire')}
+              >
+                🤝 Volontaire
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Actions de génération */}
       {hasAnyRole('ADMIN', 'OFFICIER', 'OPE') && (
         <div style={{ marginTop: 12 }}>
           <button className="pl-btn" onClick={onGenerate}>⚙️ Générer le mois</button>

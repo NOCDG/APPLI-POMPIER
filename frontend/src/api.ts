@@ -76,7 +76,13 @@ export type Garde = {
   validated_at?: string | null;
 };
 
-export type Affectation = { id: number; garde_id: number; piquet_id: number; personnel_id: number; };
+export type Affectation = {
+  id: number;
+  garde_id: number;
+  piquet_id: number;
+  personnel_id: number;
+  statut_service?: "pro" | "volontaire" | null;  // 🆕 info renvoyée par le backend
+};
 
 export type SuggestionMini = { id: number; nom: string; prenom: string; equipe_id?: number|null; };
 
@@ -341,10 +347,17 @@ export async function listAffectations(garde_id?: number){
   const r = await api.get("/affectations", { params: garde_id ? { garde_id } : {} });
   return r.data as Affectation[];
 }
-export async function createAffectation(payload: { garde_id: number; piquet_id: number; personnel_id: number }){
+
+export async function createAffectation(payload: {
+  garde_id: number;
+  piquet_id: number;
+  personnel_id: number;
+  statut_service?: "pro" | "volontaire";  // 🆕 optionnel
+}) {
   const r = await api.post("/affectations", payload);
   return r.data as Affectation;
 }
+
 export async function deleteAffectation(id: number){
   const r = await api.delete(`/affectations/${id}`);
   return r.data;

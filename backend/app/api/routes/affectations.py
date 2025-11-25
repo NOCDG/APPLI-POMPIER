@@ -28,7 +28,11 @@ def list_affectations(
     return db.scalars(q.order_by(Affectation.garde_id)).all()
 
 
-@router.post("", response_model=AffectationRead, dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+@router.post(
+    "",
+    response_model=AffectationRead,
+    dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))],
+)
 def create_affectation(
     payload: AffectationCreate,
     db: Session = Depends(get_session),
@@ -54,9 +58,64 @@ def create_affectation(
     if would_make_three_in_a_row(db, pers.id, g, p):
         raise HTTPException(400, "Règle: pas 3 gardes consécutives (24h de coupure requise)")
 
-    # Unicités gérées par uq_garde_piquet / uq_garde_personnel
-    aff = Affectation(**payload.model_dump())
-    db.add(aff); db.commit(); db.refresh(aff)
+    # ============================
+    # 🧠 GESTION DU STATUT SERVICE
+    # ============================
+    # statut principal de la personne (Enum ou str)
+    raw = pers.statut
+    perso_statut = (
+        raw.value.lower() if hasattr(raw, "value")
+        else (raw or "").lower()
+    )
+
+    # normalisation de ce qui vient du front
+    statut_service = payload.statut_service
+    if statut_service:
+        statut_service = statut_service.lower()
+        if statut_service not in ("pro", "volontaire"):
+            raise HTTPException(
+                status_code=400,
+                detail="statut_service doit être 'pro' ou 'volontaire'",
+            )
+
+    # si pas fourni, on essaie de le déduire
+    if not statut_service:
+        if perso_statut in ("pro", "volontaire"):
+            # simple : on reprend le statut principal
+            statut_service = perso_statut
+        elif perso_statut == "double":
+            # 🔥 cas important : double mais pas de choix → on refuse
+            raise HTTPException(
+                status_code=400,
+                detail="Ce personnel est en double statut : préciser statut_service = 'pro' ou 'volontaire'",
+            )
+        else:
+            statut_service = None
+
+    # petite cohérence (évite les incohérences front)
+    if perso_statut == "pro" and statut_service == "volontaire":
+        raise HTTPException(
+            status_code=400,
+            detail="Ce personnel est PRO uniquement, impossible de l'affecter en VOLONTAIRE",
+        )
+    if perso_statut == "volontaire" and statut_service == "pro":
+        raise HTTPException(
+            status_code=400,
+            detail="Ce personnel est VOLONTAIRE uniquement, impossible de l'affecter en PRO",
+        )
+
+    # ============================
+    # CRÉATION
+    # ============================
+    aff = Affectation(
+        garde_id=payload.garde_id,
+        piquet_id=payload.piquet_id,
+        personnel_id=payload.personnel_id,
+        statut_service=statut_service,
+    )
+    db.add(aff)
+    db.commit()
+    db.refresh(aff)
     return aff
 
 
