@@ -126,7 +126,7 @@ jobs:
       MAIL_PORT: ${{ secrets.MAIL_PORT }}
       MAIL_TLS: ${{ secrets.MAIL_TLS }}
       MAIL_SSL: ${{ secrets.MAIL_SSL }}
-      FRONTEND_URL: ${{FRONTEND_URL}}
+      FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
 
     steps:
       - name: Download backend
