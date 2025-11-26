@@ -1,7 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 import json
-from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     # --- Base de données ---
