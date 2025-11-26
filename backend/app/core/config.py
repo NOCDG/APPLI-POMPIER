@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional
 import json
-
+from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     # --- Base de données ---
@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
 
-    FRONTEND_URL: AnyHttpUrl | str = "http://localhost:5173"
+    FRONTEND_URL: str = "https://pompier.gandour.org"
 
     # --- JWT ---
     JWT_SECRET: str  # obligatoire
