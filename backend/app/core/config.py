@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     postgres_host: str = "localhost"
     postgres_port: int = 5432
 
+    FRONTEND_URL: AnyHttpUrl | str = "http://localhost:5173"
+
     # --- JWT ---
     JWT_SECRET: str  # obligatoire
     JWT_ALG: str = "HS256"

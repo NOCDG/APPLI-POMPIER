@@ -65,7 +65,7 @@ async def forgot_password(
 
     token = create_reset_token(payload.email)
 
-    frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+    frontend_base = getattr(settings, "FRONTEND_URL", "https://pompier.gandouur.org")
     reset_link = f"{frontend_base}/reset-password?token={token}"
 
     subject = "Réinitialisation de votre mot de passe - FEUILLE_GARDE"
