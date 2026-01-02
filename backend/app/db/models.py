@@ -5,6 +5,7 @@ import enum
 
 from sqlalchemy import (
     Boolean,
+    Column,
     Date,
     DateTime,
     Enum as SAEnum,
@@ -170,6 +171,8 @@ class Affectation(Base):
         UniqueConstraint("garde_id", "piquet_id", name="uq_garde_piquet"),
         UniqueConstraint("garde_id", "personnel_id", name="uq_garde_personnel"),
     )
+    ope_checked = Column(Boolean, nullable=False, server_default="false")
+    ope_checked_at = Column(DateTime(timezone=True), nullable=True)
 
 class Piquet(Base):
     __tablename__ = "piquets"

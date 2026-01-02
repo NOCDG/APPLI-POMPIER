@@ -14,6 +14,11 @@ class AffectationCreate(BaseModel):
     statut_service: Optional[StatutServiceLiteral] = None
 
 
+# 🆕 payload PATCH pour la case OPE
+class AffectationOpeCheckPatch(BaseModel):
+    ope_checked: bool
+
+
 class AffectationRead(BaseModel):
     id: int
     garde_id: int
@@ -22,6 +27,10 @@ class AffectationRead(BaseModel):
     created_at: datetime
     # sortie JSON : on accepte une simple string
     statut_service: Optional[str] = None
+
+    # 🆕 états de validation OPE
+    ope_checked: bool
+    ope_checked_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
