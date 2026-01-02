@@ -30,7 +30,13 @@ def _to_read_schema(p: Piquet) -> PiquetRead:
                     libelle=pc.competence.libelle,
                 )
             )
-    return PiquetRead(id=p.id, code=p.code, libelle=p.libelle, exigences=exigences)
+    return PiquetRead(
+        id=p.id, 
+        code=p.code, 
+        libelle=p.libelle, 
+        exigences=exigences,
+        is_astreinte=bool(getattr(p, "is_astreinte", False))
+        )
 
 # -------- CRUD --------
 @router.post("/", response_model=PiquetRead)

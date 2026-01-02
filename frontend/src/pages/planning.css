@@ -162,6 +162,26 @@ body {
   border-radius: .5rem;
 }
 
+.pl-section {
+  margin-top: 8px;
+}
+
+.pl-section-title {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  font-size: 0.8rem;
+  opacity: 0.85;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  margin-bottom: 6px;
+}
+
+.pl-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 10px 0;
+}
+
 .pl-badge-ok {
   margin-left: .5rem;
   padding: .2rem .5rem;

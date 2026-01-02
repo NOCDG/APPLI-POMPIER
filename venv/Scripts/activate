@@ -35,7 +35,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\abennour\OneDrive - Cesi\Documents\FEUILLE-GARDE\venv"
+VIRTUAL_ENV="D:\DEV\feuille_garde\venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
