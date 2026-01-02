@@ -81,8 +81,13 @@ export type Affectation = {
   garde_id: number;
   piquet_id: number;
   personnel_id: number;
-  statut_service?: "pro" | "volontaire" | null;  // 🆕 info renvoyée par le backend
+  statut_service?: "pro" | "volontaire" | null;
+
+  // ✅ Cases OPE (BDD)
+  ope_checked?: boolean;            // renvoyé par le backend
+  ope_checked_at?: string | null;   // renvoyé par le backend
 };
+
 
 export type SuggestionMini = { id: number; nom: string; prenom: string; equipe_id?: number|null; };
 
@@ -363,6 +368,24 @@ export async function deleteAffectation(id: number){
   return r.data;
 }
 
+// ✅ Cocher / décocher 1 affectation (case agent)
+export async function patchAffectationOpeChecked(
+  affectation_id: number,
+  payload: { ope_checked: boolean }
+) {
+  const r = await api.patch(`/affectations/${affectation_id}`, payload);
+  return r.data as Affectation;
+}
+
+// ✅ Cocher / décocher toutes les affectations d'une garde (case "Saisie terminée")
+export async function bulkOpeCheckForGarde(
+  garde_id: number,
+  payload: { checked: boolean }
+) {
+  const r = await api.post(`/affectations/garde/${garde_id}/ope-check`, payload);
+  return r.data as { ok: boolean; garde_id: number; count: number; checked: boolean };
+}
+
 /* ============================
    SUGGESTIONS
 ============================ */
@@ -483,3 +506,4 @@ export async function resetPassword(token: string, newPassword: string) {
   });
   return r.data;
 }
+

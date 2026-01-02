@@ -6,13 +6,24 @@ import {
   listGardes,
   listAffectations,
   listPersonnels,
-  type Garde, type Equipe, type Piquet, type Affectation, type Personnel
+  patchAffectationOpeChecked, // ✅ nouveau nom (export réel dans api.ts)
+  bulkOpeCheckForGarde,
+  type Garde,
+  type Equipe,
+  type Piquet,
+  type Affectation,
+  type Personnel,
 } from "../api";
 import "./saisie-gardes.css";
 
+type AffectationWithOpe = Affectation & {
+  ope_checked?: boolean;
+  ope_checked_at?: string | null;
+};
+
 export default function SaisieGardesPage() {
   const { hasAnyRole } = useAuth();
-  const allowed = hasAnyRole("OPE"); // 🔒 réservé OPE
+  const allowed = hasAnyRole("OPE");
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -21,16 +32,24 @@ export default function SaisieGardesPage() {
   const [equipes, setEquipes] = useState<Equipe[]>([]);
   const [piquets, setPiquets] = useState<Piquet[]>([]);
   const [gardes, setGardes] = useState<Garde[]>([]);
-  const [affByGarde, setAffByGarde] = useState<Record<number, Affectation[]>>({});
+  const [affByGarde, setAffByGarde] = useState<Record<number, AffectationWithOpe[]>>({});
   const [personnels, setPersonnels] = useState<Personnel[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // UI pending (évite double clic pendant requêtes)
+  const [pendingAffIds, setPendingAffIds] = useState<Record<number, boolean>>({});
+  const [pendingGardeIds, setPendingGardeIds] = useState<Record<number, boolean>>({});
 
   // charge bases
   useEffect(() => {
     (async () => {
       setLoading(true);
       try {
-        const [eqs, pqs, pers] = await Promise.all([listEquipes(), listPiquets(), listPersonnels()]);
+        const [eqs, pqs, pers] = await Promise.all([
+          listEquipes(),
+          listPiquets(),
+          listPersonnels(),
+        ]);
         setEquipes(eqs);
         setPiquets(pqs);
         setPersonnels(pers);
@@ -40,17 +59,18 @@ export default function SaisieGardesPage() {
     })();
   }, []);
 
-  // charge le mois (⚠️ on ne filtre plus : on prend tout)
   async function loadMonth() {
     setLoading(true);
     try {
-      const gs = await listGardes({ year, month }); // ← toutes les gardes
+      const gs = await listGardes({ year, month });
       setGardes(gs);
 
-      const map: Record<number, Affectation[]> = {};
-      await Promise.all(gs.map(async (g) => {
-        map[g.id] = await listAffectations(g.id);
-      }));
+      const map: Record<number, AffectationWithOpe[]> = {};
+      await Promise.all(
+        gs.map(async (g) => {
+          map[g.id] = (await listAffectations(g.id)) as any;
+        })
+      );
       setAffByGarde(map);
     } finally {
       setLoading(false);
@@ -76,9 +96,21 @@ export default function SaisieGardesPage() {
   }, [piquets]);
 
   const orderedEquipes = useMemo(() => {
-    // ordre A, B, C, D … (tri par code)
     return [...equipes].sort((a, b) => (a.code || "").localeCompare(b.code || ""));
   }, [equipes]);
+
+  // map id_equipe -> couleur
+  const equipeColorMap = useMemo(() => {
+    const m: Record<number, string> = {};
+    equipes.forEach((eq) => {
+      // @ts-ignore
+      const c = (eq as any).couleur ?? (eq as any).color;
+      if (typeof c === "string" && c.trim()) m[eq.id] = c.trim();
+    });
+    return m;
+  }, [equipes]);
+
+  const eqColor = (eqId: number) => equipeColorMap[eqId] || "#607d8b";
 
   const persona = (id: number) => {
     const p = personnels.find((x) => x.id === id);
@@ -87,10 +119,9 @@ export default function SaisieGardesPage() {
 
   const isAstreinte = (piquet: Piquet | undefined) => {
     if (!piquet) return false;
-    // 1) champ bool si présent
     // @ts-ignore
-    if (typeof (piquet as any).is_astreinte === "boolean" && (piquet as any).is_astreinte) return true;
-    // 2) fallback sur code/libellé commençant par "astreinte"
+    if (typeof (piquet as any).is_astreinte === "boolean" && (piquet as any).is_astreinte)
+      return true;
     const s = `${piquet.code || ""} ${piquet.libelle || ""}`.trim().toLowerCase();
     return s.startsWith("astreinte");
   };
@@ -102,6 +133,81 @@ export default function SaisieGardesPage() {
       day: "2-digit",
       month: "long",
     });
+  }
+
+  // ---- CHECKBOXES helpers (source de vérité = affByGarde[*].ope_checked) ----
+  const isAffChecked = (a: AffectationWithOpe) => Boolean((a as any).ope_checked);
+
+  const isAllChecked = (gardeId: number) => {
+    const affs = affByGarde[gardeId] || [];
+    if (affs.length === 0) return false;
+    return affs.every((a) => isAffChecked(a));
+  };
+
+  const setAffLocal = (gardeId: number, affectationId: number, checked: boolean) => {
+    setAffByGarde((prev) => {
+      const list = prev[gardeId] || [];
+      const next = list.map((a) =>
+        a.id === affectationId ? ({ ...a, ope_checked: checked } as any) : a
+      );
+      return { ...prev, [gardeId]: next };
+    });
+  };
+
+  const setAllLocal = (gardeId: number, checked: boolean) => {
+    setAffByGarde((prev) => {
+      const list = prev[gardeId] || [];
+      const next = list.map((a) => ({ ...a, ope_checked: checked } as any));
+      return { ...prev, [gardeId]: next };
+    });
+  };
+
+  async function toggleAff(gardeId: number, aff: AffectationWithOpe, checked: boolean) {
+    if (pendingAffIds[aff.id]) return;
+
+    // UI optimiste
+    setAffLocal(gardeId, aff.id, checked);
+    setPendingAffIds((p) => ({ ...p, [aff.id]: true }));
+
+    try {
+      await patchAffectationOpeChecked(aff.id, { ope_checked: checked });
+    } catch (e) {
+      // rollback
+      setAffLocal(gardeId, aff.id, !checked);
+      alert("Impossible d'enregistrer la validation (serveur).");
+    } finally {
+      setPendingAffIds((p) => {
+        const copy = { ...p };
+        delete copy[aff.id];
+        return copy;
+      });
+    }
+  }
+
+  async function toggleAllForGarde(gardeId: number, checked: boolean) {
+    if (pendingGardeIds[gardeId]) return;
+
+    // UI optimiste
+    setAllLocal(gardeId, checked);
+    setPendingGardeIds((p) => ({ ...p, [gardeId]: true }));
+
+    try {
+      await bulkOpeCheckForGarde(gardeId, { checked });
+
+      // resync depuis le serveur (source de vérité)
+      const updated = (await listAffectations(gardeId)) as any as AffectationWithOpe[];
+      setAffByGarde((prev) => ({ ...prev, [gardeId]: updated }));
+    } catch (e) {
+      // rollback
+      setAllLocal(gardeId, !checked);
+      alert("Impossible d'enregistrer la validation globale (serveur).");
+    } finally {
+      setPendingGardeIds((p) => {
+        const copy = { ...p };
+        delete copy[gardeId];
+        return copy;
+      });
+    }
   }
 
   // groupe par date, puis gJour/gNuit
@@ -118,39 +224,57 @@ export default function SaisieGardesPage() {
 
   // rend un bloc (JOUR/NUIT) avec 2 sections : Piquets / Astreinte, par équipe
   function renderSlotBlock(label: "JOUR" | "NUIT", garde: Garde | null) {
-    const validated = garde ? Boolean((garde as any).validated) : false;
-    const validatedAt = garde && (garde as any).validated_at
-      ? new Date((garde as any).validated_at).toLocaleString()
-      : null;
-
-    // helper pour générer lignes d’une section selon filtre astreinte ou non
     const sectionRows = (wantAstreinte: boolean) => (
       <div className="sg-eq-table">
         {orderedEquipes.map((eq) => {
-          const names: string[] = [];
-          if (garde && validated) { // ⬅️ on ne remplit les noms que si la garde est validée
+          const rows: Array<{ aff: AffectationWithOpe; label: string }> = [];
+
+          if (garde) {
             const affs = affByGarde[garde.id] || [];
             for (const a of affs) {
               const pers = personnels.find((x) => x.id === a.personnel_id);
               if (!pers || pers.equipe_id !== eq.id) continue;
+
               const pqt = pqById.get(a.piquet_id);
               if (isAstreinte(pqt) !== wantAstreinte) continue;
-              names.push(persona(pers.id));
+
+              rows.push({ aff: a, label: persona(pers.id) });
             }
           }
+
+          // ✅ cadre seulement si au moins un agent
+          if (rows.length === 0) return null;
+
+          const border = eqColor(eq.id);
+          const softBg = `${border}14`; // opacité faible si hex
+
           return (
-            <div className="sg-eq-row" key={`${eq.id}-${wantAstreinte ? "ast" : "pqt"}`}>
+            <div
+              className="sg-eq-row sg-team-card"
+              key={`${eq.id}-${wantAstreinte ? "ast" : "pqt"}`}
+              style={{ borderColor: border, backgroundColor: softBg }}
+            >
               <div className="sg-eq-label">{eq.code}</div>
               <div className="sg-eq-names">
-                {names.length ? (
-                  <ul className="sg-list">
-                    {names.sort((a, b) => a.localeCompare(b)).map((n) => (
-                      <li key={n}>{n}</li>
+                <ul className="sg-list">
+                  {rows
+                    .sort((a, b) => a.label.localeCompare(b.label))
+                    .map((r) => (
+                      <li key={r.aff.id} className="sg-person-row">
+                        <span className="sg-person-name">{r.label}</span>
+                        {garde ? (
+                          <input
+                            className="sg-person-check"
+                            type="checkbox"
+                            checked={isAffChecked(r.aff)}
+                            disabled={!!pendingAffIds[r.aff.id] || !!pendingGardeIds[garde.id]}
+                            onChange={(e) => toggleAff(garde.id, r.aff, e.target.checked)}
+                            title="Valider cet agent"
+                          />
+                        ) : null}
+                      </li>
                     ))}
-                  </ul>
-                ) : (
-                  <span className="sg-empty-small">—</span>
-                )}
+                </ul>
               </div>
             </div>
           );
@@ -170,36 +294,40 @@ export default function SaisieGardesPage() {
               <span className="sg-equipe-assigned">
                 {garde.equipe_id ? (eqById.get(garde.equipe_id)?.code || `EQ#${garde.equipe_id}`) : "—"}
               </span>
-              {validated ? (
-                <span className="sg-badge-ok" title={validatedAt ? `Validée le ${validatedAt}` : "Validée"}>
-                  ✅ Validée
-                </span>
-              ) : (
-                <span className="sg-badge-bad" title="Non validée">❌ Non validée</span>
-              )}
+
+              <label className="sg-validated-checkbox" title="Cocher quand la saisie est terminée">
+                <input
+                  type="checkbox"
+                  checked={isAllChecked(garde.id)}
+                  disabled={!!pendingGardeIds[garde.id]}
+                  onChange={(e) => toggleAllForGarde(garde.id, e.target.checked)}
+                />
+                <span>Saisie terminée</span>
+              </label>
             </>
           ) : (
             <span className="sg-muted">— Aucune garde —</span>
           )}
         </div>
 
-        {/* Section PIQUETS (hors astreinte) */}
         <div className="sg-subtitle">🚒 Gardes</div>
         {sectionRows(false)}
 
-        {/* Section ASTREINTE */}
-        <div className="sg-subtitle" style={{ marginTop: 10 }}>🏠 Astreinte</div>
+        <div className="sg-subtitle" style={{ marginTop: 10 }}>
+          🏠 Astreinte
+        </div>
         {sectionRows(true)}
       </div>
     );
   }
 
-  // ====== RENDU ======
   if (!allowed) {
     return (
       <div className="sg-container">
         <h2 className="sg-title">🔒 Accès restreint</h2>
-        <p>Cette page est réservée au rôle <b>OPE</b>.</p>
+        <p>
+          Cette page est réservée au rôle <b>OPE</b>.
+        </p>
       </div>
     );
   }
@@ -208,7 +336,6 @@ export default function SaisieGardesPage() {
     <div className="sg-container">
       <h2 className="sg-title">🧾 Saisie gardes</h2>
 
-      {/* Barre de sélection */}
       <div className="sg-toolbar">
         <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
           {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
@@ -224,12 +351,13 @@ export default function SaisieGardesPage() {
             </option>
           ))}
         </select>
-        <button className="sg-btn" onClick={loadMonth}>🔄 Recharger</button>
+        <button className="sg-btn" onClick={loadMonth}>
+          🔄 Recharger
+        </button>
       </div>
 
       {loading && <div className="sg-muted">Chargement…</div>}
 
-      {/* Liste par jour */}
       {!loading && (
         <>
           {gardesByDate.length === 0 ? (
@@ -239,8 +367,6 @@ export default function SaisieGardesPage() {
               {gardesByDate.map(([iso, pair]) => (
                 <div className="sg-day" key={iso}>
                   <div className="sg-day-head">{formatDate(iso)}</div>
-
-                  {/* n’affiche que les gardes existantes (NUIT semaine, JOUR+NUIT WE/JF) */}
                   {pair.jour && renderSlotBlock("JOUR", pair.jour)}
                   {pair.nuit && renderSlotBlock("NUIT", pair.nuit)}
                 </div>

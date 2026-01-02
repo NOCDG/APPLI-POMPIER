@@ -229,3 +229,58 @@
   font-weight: 700;
   border: 1px solid #7f1d1d;
 }
+
+.sg-validated-checkbox {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+
+.sg-person-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.sg-person-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sg-person-check {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+/* Cadres d’équipe */
+.sg-team-card {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 10px;
+  margin: 8px 0;
+}
+
+/* Couleurs d’équipe (modifie si tu veux) */
+.team-A {
+  border-color: #1e88e5;
+}
+.team-B {
+  border-color: #43a047;
+}
+.team-C {
+  border-color: #fb8c00;
+}
+.team-D {
+  border-color: #8e24aa;
+}
+.team-X {
+  border-color: #607d8b;
+}

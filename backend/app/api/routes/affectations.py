@@ -1,7 +1,7 @@
 import calendar
 from datetime import date as date_type
 from typing import List
-
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.api.deps import get_session
 from app.core.security import get_current_user, ensure_can_modify_garde, require_roles
 from app.db.models import Affectation, Garde, Piquet, Personnel, Personnel as PersonnelModel
-from app.schemas.affectation import AffectationCreate, AffectationRead
+from app.schemas.affectation import AffectationCreate, AffectationRead, AffectationOpeCheckPatch
 from app.services.planning import has_all_required_competences, would_make_three_in_a_row
 
 from pydantic import BaseModel
@@ -112,6 +112,8 @@ def create_affectation(
         piquet_id=payload.piquet_id,
         personnel_id=payload.personnel_id,
         statut_service=statut_service,
+        ope_checked=False,
+        ope_checked_at=None,
     )
     db.add(aff)
     db.commit()
@@ -200,26 +202,6 @@ def mine_upcoming_affectations(
     return out
 
 
-@router.delete("/{affectation_id}", dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
-def delete_affectation(
-    affectation_id: int,
-    db: Session = Depends(get_session),
-    user: PersonnelModel = Depends(get_current_user),
-):
-    a = db.get(Affectation, affectation_id)
-    if not a:
-        raise HTTPException(404, "Affectation introuvable")
-    g = db.get(Garde, a.garde_id)
-    if not g:
-        raise HTTPException(404, "Garde introuvable")
-
-    # 🔒 bloque la suppression si garde validée (sauf ADMIN/OFFICIER)
-    ensure_can_modify_garde(user, g)
-
-    db.delete(a); db.commit()
-    return {"ok": True}
-
-
 # --- Suggestions pour accélérer le planning ---
 @router.get("/suggestions", response_model=list[dict])
 def suggest_personnels(
@@ -275,3 +257,84 @@ def suggest_personnels(
 
     rows.sort(key=lambda r: r["priorite"])
     return rows
+
+@router.patch(
+    "/{affectation_id}",
+    response_model=AffectationRead,
+    dependencies=[Depends(require_roles("ADMIN", "OFFICIER", "OPE"))],
+)
+def patch_affectation_ope_checked(
+    affectation_id: int,
+    payload: AffectationOpeCheckPatch,
+    db: Session = Depends(get_session),
+    user: PersonnelModel = Depends(get_current_user),
+):
+    a = db.get(Affectation, affectation_id)
+    if not a:
+        raise HTTPException(404, "Affectation introuvable")
+
+    # Option métier: autoriser OPE même si garde validée (c'est de la saisie/contrôle)
+    # Si tu veux verrouiller quand validée, dé-commente:
+    # g = db.get(Garde, a.garde_id)
+    # if not g:
+    #     raise HTTPException(404, "Garde introuvable")
+    # ensure_can_modify_garde(user, g)
+
+    a.ope_checked = bool(payload.ope_checked)
+    a.ope_checked_at = datetime.now(timezone.utc) if a.ope_checked else None
+
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    return a
+
+class BulkOpeCheckPayload(BaseModel):
+    checked: bool
+
+
+@router.post(
+    "/garde/{garde_id}/ope-check",
+    dependencies=[Depends(require_roles("ADMIN", "OFFICIER", "OPE"))],
+)
+def bulk_ope_check_for_garde(
+    garde_id: int,
+    payload: BulkOpeCheckPayload,
+    db: Session = Depends(get_session),
+    user: PersonnelModel = Depends(get_current_user),
+):
+    g = db.get(Garde, garde_id)
+    if not g:
+        raise HTTPException(404, "Garde introuvable")
+
+    # Même remarque que plus haut :
+    # si tu veux interdire quand la garde est validée, dé-commente :
+    # ensure_can_modify_garde(user, g)
+
+    affs = db.scalars(select(Affectation).where(Affectation.garde_id == garde_id)).all()
+
+    now = datetime.now(timezone.utc) if payload.checked else None
+    for a in affs:
+        a.ope_checked = bool(payload.checked)
+        a.ope_checked_at = now
+
+    db.commit()
+    return {"ok": True, "garde_id": garde_id, "count": len(affs), "checked": bool(payload.checked)}
+
+@router.delete("/{affectation_id}", dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+def delete_affectation(
+    affectation_id: int,
+    db: Session = Depends(get_session),
+    user: PersonnelModel = Depends(get_current_user),
+):
+    a = db.get(Affectation, affectation_id)
+    if not a:
+        raise HTTPException(404, "Affectation introuvable")
+    g = db.get(Garde, a.garde_id)
+    if not g:
+        raise HTTPException(404, "Garde introuvable")
+
+    # 🔒 bloque la suppression si garde validée (sauf ADMIN/OFFICIER)
+    ensure_can_modify_garde(user, g)
+
+    db.delete(a); db.commit()
+    return {"ok": True}
