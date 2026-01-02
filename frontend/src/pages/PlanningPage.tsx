@@ -88,6 +88,23 @@ export default function PlanningPage() {
     return m
   }, [equipes])
 
+  // ✅ séparation GARDE / ASTREINTE
+  const { piquetsGarde, piquetsAstreinte } = useMemo(() => {
+    const garde: Piquet[] = []
+    const astreinte: Piquet[] = []
+    const isAstreinte = (p: Piquet) => {
+      const v: any = (p as any).is_astreinte
+      return v === true || v === 1 || v === "1" || v === "true" || v === "True"
+  }
+
+    for (const p of piquets) {
+      if (p.is_astreinte === true) astreinte.push(p)
+      else garde.push(p)
+    }
+
+    return { piquetsGarde: garde, piquetsAstreinte: astreinte }
+  }, [piquets])
+
   // choix du statut pour un double
   const [statutChoice, setStatutChoice] = useState<{
     perso: Personnel
@@ -324,6 +341,94 @@ export default function PlanningPage() {
     }
   }
 
+  // ✅ rendu section GARDE / ASTREINTE
+  function renderPiquetsSection(g: Garde, title: string, list: Piquet[]) {
+    if (list.length === 0) return null
+
+    return (
+      <div className="pl-section">
+        <div className="pl-section-title">{title}</div>
+
+        {list.map(p => {
+          const aff = affFor(g.id, p.id)
+          const perso = aff ? (allPersonnels.find(x => x.id === aff.personnel_id) || null) : null
+          const personaTxt = perso ? personaShort(perso) : ''
+
+          // PRO pour cette garde ? (statut_service ou statut global)
+          const isPro =
+            (aff?.statut_service === 'pro') ||
+            ((perso?.statut || '').toLowerCase() === 'pro')
+
+          // 🎨 couleur de l'équipe de l'AGENT (et plus celle de la garde)
+          const agentEquipeColor =
+            (perso?.equipe_id && equipeColorMap[perso.equipe_id])
+              ? equipeColorMap[perso.equipe_id]
+              : undefined
+
+          // pastille ovale : fond équipe de l'agent, ou violet si PRO
+          const pillStyle: React.CSSProperties = aff ? {
+            backgroundColor: isPro ? 'violet' : (agentEquipeColor ?? '#444'),
+            color: 'black',
+            borderRadius: 999,
+            padding: '2px 8px',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            display: 'inline-block',
+            maxWidth: 120,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          } : {}
+
+          return (
+            <div key={p.id} className="pl-row">
+              <div className="pl-piquet">{piquetCode(p)}</div>
+              <div
+                className="pl-assignee"
+                title={piquetLib(p)}
+                style={{
+                  width: 120,
+                  minWidth: 110,
+                  maxWidth: 140,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {aff ? (
+                  <span className="pl-pill" style={pillStyle}>{personaTxt}</span>
+                ) : (
+                  <span className="pl-empty-small">—</span>
+                )}
+              </div>
+              <div className="pl-actions">
+                {showActions ? (
+                  !aff ? (
+                    <button
+                      className="pl-icon-btn add"
+                      title="Ajouter"
+                      onClick={() => openPanel(g, p)}
+                    >
+                      ➕
+                    </button>
+                  ) : (
+                    <button
+                      className="pl-icon-btn remove"
+                      title="Supprimer"
+                      onClick={() => remove(aff)}
+                    >
+                      ❌
+                    </button>
+                  )
+                ) : null}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   // --- rendu d'une “carte garde” ---
   const renderCard = (g: Garde | null) => {
     if (!g) return null
@@ -355,84 +460,14 @@ export default function PlanningPage() {
           </div>
 
           <div className="pl-rows">
-            {piquets.map(p => {
-              const aff = affFor(g.id, p.id)
-              const perso = aff ? (allPersonnels.find(x => x.id === aff.personnel_id) || null) : null
-              const personaTxt = perso ? personaShort(perso) : ''
+            {renderPiquetsSection(g, 'GARDE', piquetsGarde)}
 
-              // PRO pour cette garde ? (statut_service ou statut global)
-              const isPro =
-                (aff?.statut_service === 'pro') ||
-                ((perso?.statut || '').toLowerCase() === 'pro')
+            {piquetsGarde.length > 0 && piquetsAstreinte.length > 0 && (
+              <div className="pl-divider" />
+            )}
 
-              // 🎨 couleur de l'équipe de l'AGENT (et plus celle de la garde)
-              const agentEquipeColor =
-                (perso?.equipe_id && equipeColorMap[perso.equipe_id])
-                  ? equipeColorMap[perso.equipe_id]
-                  : undefined
-
-              // pastille ovale : fond équipe de l'agent, ou violet si PRO
-              const pillStyle: React.CSSProperties = aff ? {
-                backgroundColor: isPro ? 'violet' : (agentEquipeColor ?? '#444'),
-                color: 'black',
-                borderRadius: 999,
-                padding: '2px 8px',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                display: 'inline-block',
-                maxWidth: 120,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              } : {}
-
-              return (
-                <div key={p.id} className="pl-row">
-                  <div className="pl-piquet">{piquetCode(p)}</div>
-                  <div
-                    className="pl-assignee"
-                    title={piquetLib(p)}
-                    style={{
-                      width: 120,
-                      minWidth: 110,
-                      maxWidth: 140,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                  >
-                    {aff ? (
-                      <span className="pl-pill" style={pillStyle}>{personaTxt}</span>
-                    ) : (
-                      <span className="pl-empty-small">—</span>
-                    )}
-                  </div>
-                  <div className="pl-actions">
-                    {showActions ? (
-                      !aff ? (
-                        <button
-                          className="pl-icon-btn add"
-                          title="Ajouter"
-                          onClick={() => openPanel(g, p)}
-                        >
-                          ➕
-                        </button>
-                      ) : (
-                        <button
-                          className="pl-icon-btn remove"
-                          title="Supprimer"
-                          onClick={() => remove(aff!)}
-                        >
-                          ❌
-                        </button>
-                      )
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
+            {renderPiquetsSection(g, 'ASTREINTE', piquetsAstreinte)}
           </div>
-
         </div>
       </div>
     )
