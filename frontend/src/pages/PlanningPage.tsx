@@ -51,7 +51,7 @@ type Personnel = {
   nom: string
   prenom: string
   equipe_id?: number | null
-  statut?: string | null       // gérer le double statut
+  statut?: string | null // gérer le double statut
 }
 
 type StatutService = 'pro' | 'volontaire'
@@ -81,9 +81,7 @@ export default function PlanningPage() {
   const equipeColorMap = useMemo(() => {
     const m: Record<number, string> = {}
     equipes.forEach(eq => {
-      if (eq.couleur) {
-        m[eq.id] = eq.couleur
-      }
+      if (eq.couleur) m[eq.id] = eq.couleur
     })
     return m
   }, [equipes])
@@ -92,16 +90,10 @@ export default function PlanningPage() {
   const { piquetsGarde, piquetsAstreinte } = useMemo(() => {
     const garde: Piquet[] = []
     const astreinte: Piquet[] = []
-    const isAstreinte = (p: Piquet) => {
-      const v: any = (p as any).is_astreinte
-      return v === true || v === 1 || v === "1" || v === "true" || v === "True"
-  }
-
     for (const p of piquets) {
       if (p.is_astreinte === true) astreinte.push(p)
       else garde.push(p)
     }
-
     return { piquetsGarde: garde, piquetsAstreinte: astreinte }
   }, [piquets])
 
@@ -130,7 +122,7 @@ export default function PlanningPage() {
     return formatShortName(p.nom, p.prenom)
   }
 
-  // filtre équipe
+  // filtre équipe (côté UI)
   const filteredGardes = useMemo(() => {
     if (!equipeId) return gardes
     const eid = Number(equipeId)
@@ -341,6 +333,36 @@ export default function PlanningPage() {
     }
   }
 
+  // ✅ équipe "effective" (celle réellement affichée)
+  const effectiveEquipeId: number | null = useMemo(() => {
+    if (isChef) return myEquipeId ?? null
+    return equipeId !== '' ? Number(equipeId) : null
+  }, [isChef, myEquipeId, equipeId])
+
+  // ✅ personnels non affectés PAR GARDE (dans l'équipe effective)
+  const unassignedByGarde = useMemo(() => {
+    const map: Record<number, Personnel[]> = {}
+    if (!effectiveEquipeId) return map
+
+    const teamPersons = allPersonnels
+      .filter(p => (p.equipe_id ?? null) === effectiveEquipeId)
+
+    for (const g of filteredGardes) {
+      const affs = affByGarde[g.id] || []
+      const assignedIds = new Set<number>(affs.map(a => a.personnel_id))
+
+      map[g.id] = teamPersons
+        .filter(p => !assignedIds.has(p.id))
+        .sort((a, b) => {
+          const an = (a.nom ?? '').localeCompare(b.nom ?? '', undefined, { sensitivity: 'base' })
+          if (an !== 0) return an
+          return (a.prenom ?? '').localeCompare(b.prenom ?? '', undefined, { sensitivity: 'base' })
+        })
+    }
+
+    return map
+  }, [effectiveEquipeId, allPersonnels, filteredGardes, affByGarde])
+
   // ✅ rendu section GARDE / ASTREINTE
   function renderPiquetsSection(g: Garde, title: string, list: Piquet[]) {
     if (list.length === 0) return null
@@ -434,6 +456,7 @@ export default function PlanningPage() {
     if (!g) return null
     const cardLocked = !canModify
     const badge = g.is_holiday ? 'JF' : (g.is_weekend ? 'WE' : null)
+    const unassigned = (unassignedByGarde[g.id] ?? [])
 
     return (
       <div key={g.id} className="pl-day" style={{ minWidth: 260 }}>
@@ -468,6 +491,53 @@ export default function PlanningPage() {
 
             {renderPiquetsSection(g, 'ASTREINTE', piquetsAstreinte)}
           </div>
+
+          {/* ✅ Non affectés sur cette garde */}
+          {effectiveEquipeId && (
+            <div className="pl-unassigned">
+              <div className="pl-unassigned-head">
+                <span className="pl-muted">
+                  Non affectés (équipe {effectiveEquipeId}) : {unassigned.length}
+                </span>
+              </div>
+
+              {unassigned.length === 0 ? (
+                <div className="pl-muted" style={{ fontSize: '0.85rem' }}>
+                  Tout le monde est affecté sur cette garde.
+                </div>
+              ) : (
+                <div className="pl-unassigned-list">
+                  {unassigned.map(p => (
+                    <span
+                      key={p.id}
+                      className="pl-pill"
+                      title={`${p.prenom} ${p.nom}`}
+                      style={{
+                        backgroundColor:
+                          (p.equipe_id && equipeColorMap[p.equipe_id]) ? equipeColorMap[p.equipe_id] : '#444',
+                        color: 'black',
+                        borderRadius: 999,
+                        padding: '3px 8px',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        margin: 3,
+                        maxWidth: 120,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                    >
+                      {personaShort(p)}
+                      {((p.statut || '').toLowerCase() === 'pro') && <span title="Professionnel">🟣</span>}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -619,16 +689,10 @@ export default function PlanningPage() {
             </div>
 
             <div className="pl-panel-block" style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-              <button
-                className="pl-btn"
-                onClick={() => confirmStatutChoice('pro')}
-              >
+              <button className="pl-btn" onClick={() => confirmStatutChoice('pro')}>
                 👨‍🚒 Professionnel
               </button>
-              <button
-                className="pl-btn"
-                onClick={() => confirmStatutChoice('volontaire')}
-              >
+              <button className="pl-btn" onClick={() => confirmStatutChoice('volontaire')}>
                 🤝 Volontaire
               </button>
             </div>
