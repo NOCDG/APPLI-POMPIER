@@ -267,20 +267,3 @@
   padding: 10px;
   margin: 8px 0;
 }
-
-/* Couleurs d’équipe (modifie si tu veux) */
-.team-A {
-  border-color: #1e88e5;
-}
-.team-B {
-  border-color: #43a047;
-}
-.team-C {
-  border-color: #fb8c00;
-}
-.team-D {
-  border-color: #8e24aa;
-}
-.team-X {
-  border-color: #607d8b;
-}

@@ -63,7 +63,7 @@ export default function Nav() {
 
         {/* 🔹 Nouvelle page OPE : Saisie des gardes */}
         {can("ADMIN","OFFICIER","OPE") && item("/saisies-gardes", "📝 Saisies gardes")}
-        {can("ADMIN","OFFICIER","OPE") && item("/vision-gardes", "👁️ Vision gardes")}
+        {can("ADMIN","OFFICIER","OPE","AGENT") && item("/vision-gardes", "👁️ Gardes")}
       </div>
 
       {/* --- Zone droite : utilisateur + logout --- */}

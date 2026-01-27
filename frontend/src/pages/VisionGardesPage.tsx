@@ -6,10 +6,13 @@ import {
 } from '../api'
 import './Visiongarde.css'
 
-export default function VisionGardesPage(){
+export default function VisionGardesPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth()+1)
+  const [month, setMonth] = useState(now.getMonth() + 1)
+
+  // ✅ filtre équipe (mémoire)
+  const [equipeId, setEquipeId] = useState<number | ''>('')
 
   const [equipes, setEquipes] = useState<Equipe[]>([])
   const [piquets, setPiquets] = useState<Piquet[]>([])
@@ -19,57 +22,68 @@ export default function VisionGardesPage(){
   const [loading, setLoading] = useState(true)
 
   // ---- LOAD BASE ----
-  useEffect(()=>{
-    (async ()=>{
+  useEffect(() => {
+    (async () => {
       setLoading(true)
-      try{
+      try {
         const [eqs, pqs, persons] = await Promise.all([listEquipes(), listPiquets(), listPersonnels()])
-        setEquipes(eqs); setPiquets(pqs); setAllPersonnels(persons)
+        setEquipes(eqs)
+        setPiquets(pqs)
+        setAllPersonnels(persons)
       } finally {
         setLoading(false)
       }
     })()
-  },[])
+  }, [])
 
-  async function loadMonth(){
+  async function loadMonth() {
     setLoading(true)
-    try{
-      // ← NE PAS FILTRER : on garde toutes les gardes
-      const gs:Garde[] = await listGardes({ year, month })
+    try {
+      // ← NE PAS FILTRER en API : on garde toutes les gardes en mémoire
+      const gs: Garde[] = await listGardes({ year, month })
       setGardes(gs)
 
       const map: Record<number, Affectation[]> = {}
-      await Promise.all(gs.map(async g=>{ map[g.id] = await listAffectations(g.id) }))
+      await Promise.all(gs.map(async g => { map[g.id] = await listAffectations(g.id) }))
       setAffByGarde(map)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(()=>{ loadMonth() },[year, month])
+  useEffect(() => { loadMonth() }, [year, month])
 
-  const daysGrouped = useMemo(()=>{
+  // ✅ Filtre en mémoire
+  const filteredGardes = useMemo(() => {
+    if (equipeId === '') return gardes
+    const eid = Number(equipeId)
+
+    // supporte garde.equipe_id typé ou pas (selon ton type importé)
+    return gardes.filter(g => (g as any).equipe_id === eid)
+  }, [gardes, equipeId])
+
+  const daysGrouped = useMemo(() => {
     const by = new Map<string, Garde[]>()
-    for(const g of gardes){
+    for (const g of filteredGardes) {
       const key = g.date
-      if(!by.has(key)) by.set(key, [])
+      if (!by.has(key)) by.set(key, [])
       by.get(key)!.push(g)
     }
-    const arr = Array.from(by.entries()).sort((a,b)=> a[0].localeCompare(b[0]))
+    const arr = Array.from(by.entries()).sort((a, b) => a[0].localeCompare(b[0]))
     // tri JOUR avant NUIT
-    for(const [, list] of arr){ list.sort((a,b)=> a.slot.localeCompare(b.slot)) }
+    for (const [, list] of arr) { list.sort((a, b) => a.slot.localeCompare(b.slot)) }
     return arr
-  }, [gardes])
+  }, [filteredGardes])
 
-  const formatDate = (iso:string) => {
-    const d = new Date(iso+'T00:00:00')
-    return d.toLocaleDateString(undefined, { weekday:'short', day:'2-digit', month:'short' })
+  const formatDate = (iso: string) => {
+    const d = new Date(iso + 'T00:00:00')
+    return d.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })
   }
-  const persona = (p:Personnel) => `${p.nom} ${p.prenom}`.trim()
-  const piquetCode = (p:Piquet) => p.code
-  const piquetLib  = (p:Piquet) => p.libelle ?? ''
-  const affFor = (gardeId:number, piquetId:number) =>
-    (affByGarde[gardeId] || []).find(a=>a.piquet_id===piquetId)
+  const persona = (p: Personnel) => `${p.nom} ${p.prenom}`.trim()
+  const piquetCode = (p: Piquet) => p.code
+  const piquetLib = (p: Piquet) => p.libelle ?? ''
+  const affFor = (gardeId: number, piquetId: number) =>
+    (affByGarde[gardeId] || []).find(a => a.piquet_id === piquetId)
 
   return (
     <div className="pl-container">
@@ -77,14 +91,30 @@ export default function VisionGardesPage(){
 
       {/* Barre de sélection */}
       <div className="pl-toolbar">
-        <select value={month} onChange={e=>setMonth(Number(e.target.value))}>
-          {Array.from({length:12}, (_,i)=>i+1).map(m=>
-            <option key={m} value={m}>{new Date(2000,m-1,1).toLocaleDateString(undefined,{month:'long'})}</option>
+        {/* ✅ Filtre équipe */}
+        <select
+          value={equipeId}
+          onChange={e => setEquipeId(e.target.value ? Number(e.target.value) : '')}
+          title="Filtrer par équipe"
+        >
+          <option value="">Toutes les équipes</option>
+          {equipes.map(eq => (
+            <option key={eq.id} value={eq.id}>
+              {(eq.code ?? eq.nom)} {eq.libelle ? `— ${eq.libelle}` : ''}
+            </option>
+          ))}
+        </select>
+
+        <select value={month} onChange={e => setMonth(Number(e.target.value))}>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map(m =>
+            <option key={m} value={m}>
+              {new Date(2000, m - 1, 1).toLocaleDateString(undefined, { month: 'long' })}
+            </option>
           )}
         </select>
 
-        <select value={year} onChange={e=>setYear(Number(e.target.value))}>
-          {Array.from({length:5}, (_,i)=> now.getFullYear()-1 + i).map(y=>
+        <select value={year} onChange={e => setYear(Number(e.target.value))}>
+          {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 1 + i).map(y =>
             <option key={y} value={y}>{y}</option>
           )}
         </select>
@@ -100,18 +130,20 @@ export default function VisionGardesPage(){
       {!loading && (
         <div className="pl-grid">
           {daysGrouped.length === 0 && (
-            <div className="pl-empty">Aucune garde pour ce mois.</div>
+            <div className="pl-empty">Aucune garde pour ce mois{equipeId ? '/équipe.' : '.'}</div>
           )}
 
           {daysGrouped.map(([iso, gs]) => {
             const gJour = gs.find(g => g.slot === 'JOUR') || null
             const gNuit = gs.find(g => g.slot === 'NUIT') || null
-            const badge = gs[0]?.is_holiday ? 'JF' : (gs[0]?.is_weekend ? 'WE' : null)
+            const badge = (gs[0] as any)?.is_holiday ? 'JF' : ((gs[0] as any)?.is_weekend ? 'WE' : null)
 
             const renderCard = (g: Garde | null) => {
               if (!g) return null
               const validated = Boolean((g as any).validated)
-              const validatedAt = (g as any).validated_at ? new Date((g as any).validated_at).toLocaleString() : null
+              const validatedAt = (g as any).validated_at
+                ? new Date((g as any).validated_at).toLocaleString()
+                : null
 
               return (
                 <div key={g.id} className="pl-day">

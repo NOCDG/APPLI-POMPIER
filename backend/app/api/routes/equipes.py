@@ -22,8 +22,8 @@ def create_equipe(payload: EquipeCreate, db: Session = Depends(get_session)):
     db.refresh(e)
     return e
 
-@router.get("/", response_model=list[EquipeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
-@router.get("", response_model=list[EquipeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+@router.get("/", response_model=list[EquipeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE","AGENT"))])
+@router.get("", response_model=list[EquipeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE","AGENT"))])
 def list_equipes(db: Session = Depends(get_session)):
     return db.scalars(select(Equipe).order_by(Equipe.code)).all()
 

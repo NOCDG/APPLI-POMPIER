@@ -20,7 +20,7 @@ from app.db.models import (
     Garde, Holiday, Slot, Equipe,
     Piquet, PiquetCompetence,
     Personnel, PersonnelCompetence,
-    Affectation, Personnel as PersonnelModel
+    Affectation, Personnel as PersonnelModel, PersonnelRole, RoleEnum,
 )
 from app.schemas.garde import (
     GardeRead, GenerateMonthRequest, GardeCreate,
@@ -39,8 +39,8 @@ def _is_holiday(db: Session, d: date_type) -> bool:
 
 
 # ---------- GET /gardes (liste par année/mois (+ filtre équipe optionnel)) ----------
-@router.get("", response_model=list[GardeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
-@router.get("/", response_model=list[GardeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+@router.get("", response_model=list[GardeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","AGENT","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+@router.get("/", response_model=list[GardeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","AGENT","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
 def list_gardes(
     year: int = Query(..., ge=1970, le=2100),
     month: int = Query(..., ge=1, le=12),
@@ -318,6 +318,23 @@ def _month_filter(annee: int, mois: int):
     )
 
 
+VALIDATION_FIXED_RECIPIENT = "operation-st-lo@sdis50.fr"
+
+def _get_officier_emails(db: Session) -> list[str]:
+    rows = db.execute(
+        select(Personnel.email)
+        .join(PersonnelRole, PersonnelRole.personnel_id == Personnel.id)
+        .where(
+            PersonnelRole.role == RoleEnum.OFFICIER,
+            Personnel.is_active.is_(True),
+            Personnel.email.is_not(None),
+            Personnel.email != "",
+        )
+        .distinct()
+    ).all()
+    return [r[0] for r in rows if r and r[0]]
+
+
 @router.post("/valider-mois")
 def valider_mois(
     annee: int = Query(..., ge=1970, le=2100),
@@ -351,10 +368,20 @@ def valider_mois(
     mois_nom = datetime(annee, mois, 1).strftime("%B %Y").capitalize()
     validator_fullname = f"{getattr(user, 'prenom', '')} {getattr(user, 'nom', '')}".strip() or user.email
 
-    # 4️⃣ Mail admin
+    # 4️⃣ Mail validation -> operation-st-lo + OFFICIER
     subject_admin = f"Validation feuille de garde – {mois_nom} – {equipe_nom}"
-    html_admin = build_validation_html("", mois_nom, equipe_nom, validator_fullname, MAIL_FROM_NAME, [])
-    send_mail("bennour.alexis@gmail.com", subject_admin, html_admin)
+
+    # ✅ Ton template (core/mailer.py) attend exactement: (mois_label, equipe_label, validateur)
+    html_admin = build_validation_html(mois_nom, equipe_nom, validator_fullname)
+
+    recipients = {VALIDATION_FIXED_RECIPIENT}
+    recipients.update(_get_officier_emails(db))
+
+    # ✅ Passe db=db pour que send_mail lise la config mail via AppSetting/env
+    send_mail(sorted(recipients), subject_admin, html_admin, db=db)
+
+    # send_mail accepte un str OU un Iterable[str] ; on passe la liste
+    send_mail(sorted(recipients), subject_admin, html_admin, db=db)
 
     # 5️⃣ Récupérer toutes les affectations concernées
     garde_ids = [g.id for g in gardes]

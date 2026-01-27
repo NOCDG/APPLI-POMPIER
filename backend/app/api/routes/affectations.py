@@ -17,7 +17,7 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/affectations", tags=["affectations"])
 
 
-@router.get("", response_model=list[AffectationRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+@router.get("", response_model=list[AffectationRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","AGENT","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
 def list_affectations(
     garde_id: int | None = Query(None),
     db: Session = Depends(get_session)
