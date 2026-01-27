@@ -205,7 +205,7 @@ function AppRoutes() {
           path="/vision-gardes"
           element={
             <ProtectedRoute>
-              <RoleGuard roles={['ADMIN','OFFICIER','OPE']}>
+              <RoleGuard roles={['ADMIN','OFFICIER','OPE','AGENT']}>
                 <div className="app">
                   <Nav />
                   <VisionGardesPage />

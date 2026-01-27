@@ -53,8 +53,8 @@ def create_piquet(payload: PiquetCreate, db: Session = Depends(get_session)):
     p = db.scalar(_query_piquet_with_exigences(db).where(Piquet.id == p.id))
     return _to_read_schema(p)
 
-@router.get("/", response_model=list[PiquetRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
-@router.get("", response_model=list[PiquetRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+@router.get("/", response_model=list[PiquetRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE","AGENT"))])
+@router.get("", response_model=list[PiquetRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","CHEF_EQUIPE","ADJ_CHEF_EQUIPE","AGENT"))])
 def list_piquets(db: Session = Depends(get_session)):
     rows = db.execute(_query_piquet_with_exigences(db)).unique().scalars().all()
     return [_to_read_schema(p) for p in rows]
