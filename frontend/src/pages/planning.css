@@ -291,3 +291,15 @@ body {
 .pl-icon-btn.remove:hover {
   color: #bd2130;
 }
+
+.pl-unassigned{
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+}
+
+.pl-unassigned-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
