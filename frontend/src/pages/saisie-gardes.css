@@ -1,195 +1,199 @@
 /* ============================
-   SAISIE GARDES PAGE (même thème que Planning)
+   SAISIE GARDES PAGE
 ============================ */
 
-.sg-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
+.sg-container { max-width: 1200px; margin: 0 auto; }
+.sg-title { margin: 0 0 4px; font-size: 1.5rem; font-weight: 800; color: var(--text); letter-spacing: -0.3px; }
 
-.sg-title {
-  margin: 24px 0;
-}
-
+/* ===== Toolbar ===== */
 .sg-toolbar {
   display: flex;
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
 }
 
 .sg-toolbar select {
   padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid #2e3a66;
-  background: #0b0f20;
-  color: #e9eeff;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
+  outline: none;
+  font-size: 13px;
+  transition: border-color var(--transition);
 }
+.sg-toolbar select:focus { border-color: var(--accent); }
 
 .sg-btn {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid #2e3a66;
-  background: #111735;
-  color: #e9eeff;
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background var(--transition);
 }
+.sg-btn:hover { background: var(--raised); }
 
 /* ===== Grille ===== */
 .sg-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
-@media (max-width: 1300px) {
-  .sg-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 1100px) {
-  .sg-grid {
-    grid-template-columns: 1fr;
-  }
-}
+@media (max-width: 1300px) { .sg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 900px)   { .sg-grid { grid-template-columns: 1fr; } }
 
 .sg-empty {
-  color: #7b8ab8;
-  border: 1px dashed #2e3a66;
+  color: var(--text-muted);
+  border: 1px dashed var(--border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 20px;
+  text-align: center;
+  font-size: 14px;
   grid-column: 1 / -1;
 }
-
-.sg-muted {
-  color: #7b8ab8;
-}
+.sg-muted { color: var(--text-muted); font-size: 13px; padding: 10px 0; }
 
 /* ===== Carte jour ===== */
 .sg-day {
-  border: 0;
-  border-radius: 12px;
-  background: #0d1226;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition:
+    box-shadow var(--transition),
+    transform var(--transition),
+    border-color var(--transition);
+}
+.sg-day:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+  border-color: var(--accent);
 }
 
 .sg-day-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  border-radius: 12px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #4065e9;
-  background: #345feb;
+  padding: 10px 14px;
+  background: var(--header-day);
+  border-bottom: 1px solid var(--header-day-border);
   font-weight: 700;
-  color: #e9eeff;
+  font-size: 13px;
+  color: #fff;
   text-transform: capitalize;
 }
 
 /* ===== Blocs JOUR / NUIT ===== */
 .sg-slot-block {
-  padding: 10px 12px;
-  border-top: 1px dashed #26325a;
+  padding: 12px 14px;
+  border-top: 1px solid var(--border-dim);
 }
+.sg-slot-block:first-of-type { border-top: none; }
 
-.sg-slot-block:first-of-type {
-  border-top: none;
-}
+/* Alternance JOUR / NUIT */
+.sg-day .sg-slot-block:nth-of-type(odd)  { background: var(--card-night-bg); }
+.sg-day .sg-slot-block:nth-of-type(even) { background: var(--card-day-bg); }
 
+/* Header JOUR / NUIT */
 .sg-slot-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  border-radius: 12px;
-  background: #132272;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: var(--btn-blue);
   padding: 6px 12px;
   color: #e9eeff;
 }
 
-.sg-slot {
-  font-weight: 700;
-  color: #fff;
-}
+.sg-slot { font-weight: 700; color: #fff; font-size: 12px; letter-spacing: 0.05em; }
 
 .sg-chip {
-  background: #fc0000;
-  color: #e9eeff;
   border-radius: 999px;
   padding: 2px 8px;
-  font-size: 12px;
-}
-
-.sg-chip.we {
-  background: #464506;
+  font-size: 11px;
+  font-weight: 700;
   color: #fff;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.28);
 }
-
-.sg-chip.jf {
-  background: #660000;
-  color: #fff;
-}
+.sg-chip.we { background: var(--chip-we); color: var(--chip-we-text); border: none; }
+.sg-chip.jf { background: var(--danger-bg); color: var(--danger-light); border: none; }
 
 .sg-equipe-assigned {
   margin-left: auto;
-  font-weight: 600;
-  color: #ffd06a;
-}
-
-.sg-badge-ok {
-  margin-left: 0.5rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 0.5rem;
-  background: #046c4e;
-  color: #e9eeff;
+  font-weight: 700;
   font-size: 12px;
+  color: var(--warn);
+  background: rgba(255,204,102,0.15);
+  border: 1px solid rgba(255,204,102,0.3);
+  border-radius: 6px;
+  padding: 2px 8px;
 }
 
-.sg-eq-table {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.sg-eq-row {
-  display: grid;
-  grid-template-columns: 80px auto;
-  gap: 8px;
+/* ===== Checkbox "Saisie terminée" ===== */
+.sg-validated-checkbox {
+  display: inline-flex;
   align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--card-pill-border);
+  border-radius: 8px;
+  background: var(--card-pill-bg);
+  color: var(--card-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+  opacity: 0.85;
+}
+.sg-validated-checkbox:hover { opacity: 1; }
+.sg-validated-checkbox input { accent-color: var(--ok); }
+
+/* ===== Sections Gardes / Astreinte ===== */
+.sg-subtitle {
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--card-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 10px 0 6px;
 }
 
+.sg-eq-table { display: flex; flex-direction: column; gap: 8px; }
+.sg-eq-row { display: grid; grid-template-columns: 72px 1fr; gap: 8px; align-items: start; }
 .sg-eq-label {
   font-weight: 700;
-  color: #a9b6dd;
+  font-size: 12px;
+  color: var(--card-text);
+  opacity: 0.85;
+  padding-top: 4px;
 }
+.sg-eq-names { font-size: 13px; color: var(--text); }
+.sg-empty-small { color: var(--card-text-muted); font-size: 12px; }
 
-.sg-eq-names {
-  font-size: 14px;
-  color: #e9ffea;
+/* Cadres d'équipe colorés */
+.sg-team-card {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  transition: box-shadow var(--transition);
 }
+.sg-team-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 
-.sg-empty-small {
-  color: #6b7aa8;
-}
-
-.sg-day .sg-slot-block:nth-of-type(odd) {
-  background: #121d47;
-  border-radius: 12px;
-}
-
-.sg-day .sg-slot-block:nth-of-type(even) {
-  background: #0f152c;
-  border-radius: 12px;
-}
-
-/* Sous-titres de section */
-.sg-subtitle {
-  font-weight: 600;
-  color: #a9b6dd;
-  margin: 8px 0 4px;
-}
-
-/* Liste des personnels (déjà donnée précédemment) */
+/* Liste des agents */
 .sg-list {
   list-style: none;
   margin: 0;
@@ -199,71 +203,43 @@
   gap: 2px;
 }
 
-.sg-list li {
-  padding: 2px 0;
-  font-size: 14px;
-  color: #e9ffea;
-  border-bottom: 1px dashed #2e3a66;
-}
-
-.sg-list li:last-child {
-  border-bottom: none;
-}
-
-.pl-badge-ok {
-  margin-left: .5rem;
-  padding: .2rem .5rem;
-  border-radius: .5rem;
-  background: #166534; /* vert foncé */
-  color: #dcfce7;      /* vert très clair */
-  font-weight: 700;
-  border: 1px solid #14532d;
-}
-
-.pl-badge-bad {
-  margin-left: .5rem;
-  padding: .2rem .5rem;
-  border-radius: .5rem;
-  background: #7f1d1d; /* rouge foncé */
-  color: #ffe4e6;
-  font-weight: 700;
-  border: 1px solid #7f1d1d;
-}
-
-.sg-validated-checkbox {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-}
-
 .sg-person-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 4px 0;
+  padding: 5px 8px;
+  border-radius: 7px;
+  transition: background var(--transition);
+  cursor: default;
 }
+.sg-person-row:hover { background: var(--card-pill-bg); }
 
 .sg-person-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--card-text);
+  font-size: 13px;
+  font-weight: 500;
 }
-
 .sg-person-check {
-  width: 18px;
-  height: 18px;
+  width: 16px; height: 16px;
   flex: 0 0 auto;
+  accent-color: var(--ok);
+  cursor: pointer;
 }
 
-/* Cadres d’équipe */
-.sg-team-card {
-  border: 2px solid transparent;
-  border-radius: 10px;
-  padding: 10px;
-  margin: 8px 0;
+/* Badges validation (partagés) */
+.pl-badge-ok, .sg-badge-ok {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--badge-ok-bg); color: var(--badge-ok-text);
+  font-weight: 700; border: 1px solid var(--badge-ok-border); font-size: 11px;
+}
+.pl-badge-bad {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--badge-bad-bg); color: var(--badge-bad-text);
+  font-weight: 700; border: 1px solid var(--badge-bad-border); font-size: 11px;
 }

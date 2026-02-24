@@ -1,104 +1,83 @@
-import React from "react";
-import { NavLink } from "react-router-dom";
-import { useAuth } from "../auth/AuthContext";
+import React from "react"
+import { NavLink, Link } from "react-router-dom"
+import { useAuth } from "../auth/AuthContext"
+import { useTheme } from "../ThemeContext"
 
 export default function Nav() {
-  const { user, logout, hasAnyRole } = useAuth();
+  const { user, logout, hasAnyRole } = useAuth()
+  const { theme, toggle } = useTheme()
 
-  // Helper pour simplifier les vérifications de rôle
-  const can = (...roles: string[]) => hasAnyRole(...roles);
+  const can = (...roles: string[]) => hasAnyRole(...roles)
 
-  const item = (to: string, label: string) => (
+  const navLink = (to: string, label: string, end = false) => (
     <NavLink
       to={to}
-      className={({ isActive }) =>
-        `px-3 py-2 rounded-xl ${
-          isActive ? "bg-[#1b2544] text-white" : "bg-[#121a2f] text-[#eaf1ff]"
-        }`
-      }
-      style={{ textDecoration: "none" }}
+      end={end}
+      className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
     >
       {label}
     </NavLink>
-  );
+  )
 
   return (
-    <nav
-      style={{
-        display: "flex",
-        gap: 8,
-        flexWrap: "wrap",
-        marginBottom: 12,
-        alignItems: "center",
-        justifyContent: "space-between",
-      }}
-    >
-      {/* --- Liens à gauche --- */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        {item("/", "🏠 Accueil")}
+    <header className="nav-header">
+      <div className="nav-inner">
 
-        {/* Planification accessible aux encadrants et chefs */}
-        {can("ADMIN", "OFFICIER", "CHEF_EQUIPE", "ADJ_CHEF_EQUIPE") &&
-          item("/planning", "🗓️ Planification")}
+        {/* Marque */}
+        <Link to="/" className="nav-brand">
+          <span className="nav-badge">FG</span>
+          <span className="nav-brand-name">Feuille de Garde</span>
+        </Link>
 
-        {/* Pages gestion internes */}
-        {can("ADMIN", "OFFICIER") && (
-          <>
-            {item("/personnels", "🧑‍🚒 Gestion du personnel")}
-            {item("/equipes", "🧩 Gestion équipes")}
-            {item("/competences", "🧠 Compétences")}
-            {item("/piquets", "🚒 Piquets")}
-            {item("/calendrier-equipe", "📅 Calendrier d'équipe")}
-          </>
-        )}
+        {/* Liens navigation */}
+        <nav className="nav-links">
+          {navLink("/", "Accueil", true)}
 
-        {can("ADMIN") && item("/admin/settings", "⚙️ Paramètres")} 
+          {can("ADMIN", "OFFICIER", "CHEF_EQUIPE", "ADJ_CHEF_EQUIPE") &&
+            navLink("/planning", "Planification")}
 
-        {/* 🔹 Nouvelle page OPE : Saisie des gardes */}
-        {can("ADMIN","OFFICIER","OPE") && item("/saisies-gardes", "📝 Saisies gardes")}
-        {can("ADMIN","OFFICIER","OPE","AGENT") && item("/vision-gardes", "👁️ Gardes")}
-      </div>
+          {can("ADMIN", "OFFICIER") && (
+            <>
+              {navLink("/personnels", "Personnel")}
+              {navLink("/equipes", "Équipes")}
+              {navLink("/competences", "Compétences")}
+              {navLink("/piquets", "Piquets")}
+              {navLink("/calendrier-equipe", "Calendrier")}
+            </>
+          )}
 
-      {/* --- Zone droite : utilisateur + logout --- */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-        {user && (
-          <span
-            style={{
-              color: "#eaf1ff",
-              background: "#121a2f",
-              borderRadius: 12,
-              padding: "6px 10px",
-              fontSize: 13,
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-            }}
-            title={user.roles?.join(", ")}
+          {can("ADMIN", "OFFICIER", "OPE") &&
+            navLink("/saisies-gardes", "Saisies gardes")}
+
+          {can("ADMIN", "OFFICIER", "OPE", "AGENT") &&
+            navLink("/vision-gardes", "Gardes")}
+
+          {can("ADMIN") &&
+            navLink("/admin/settings", "⚙ Paramètres")}
+        </nav>
+
+        {/* Zone droite */}
+        <div className="nav-right">
+          <button
+            className="nav-theme-btn"
+            onClick={toggle}
+            title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+            aria-label="Basculer le thème"
           >
-            {user.full_name || user.email}
-          </span>
-        )}
-        <button
-          onClick={logout}
-          style={{
-            background: "#b91c1c",
-            color: "white",
-            border: "none",
-            borderRadius: 10,
-            padding: "8px 12px",
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          Déconnexion
-        </button>
+            {theme === "dark" ? "☀" : "☽"}
+          </button>
+
+          {user && (
+            <span className="nav-user" title={user.roles?.join(", ")}>
+              {user.full_name || user.email}
+            </span>
+          )}
+
+          <button className="nav-logout" onClick={logout}>
+            Déconnexion
+          </button>
+        </div>
       </div>
-    </nav>
-  );
+    </header>
+  )
 }

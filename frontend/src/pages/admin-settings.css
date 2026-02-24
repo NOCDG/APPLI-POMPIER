@@ -1,30 +1,188 @@
+/* =====================================================
+   ADMIN SETTINGS — thème via variables CSS globales
+   ===================================================== */
+
+/* Reset fieldset */
+fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* ---- Section card (aussi utilisée par <fieldset>) ---- */
 .as-card {
-  border:1px solid #2e3a66;
-  background:#0d1226;
-  border-radius:12px;
-  padding:12px;
-  margin-bottom:12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition), border-color var(--transition);
 }
 
+/* Légende de fieldset -> titre de section */
+.as-card legend {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 14px;
+  padding: 0 4px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-dim);
+  float: none; /* reset fieldset float */
+}
+
+/* Labels dans les fieldsets */
+.as-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Grille de formulaire ---- */
 .as-grid {
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap:10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 4px;
 }
-@media (max-width: 900px){ .as-grid { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .as-grid { grid-template-columns: 1fr; } }
 
-.as-input, .as-textarea, .as-select {
-  width:100%;
-  padding:8px 10px;
-  border-radius:10px;
-  border:1px solid #2e3a66;
-  background:#0b0f20;
-  color:#e9eeff;
+/* ---- Inputs ---- */
+.as-input,
+.as-textarea,
+.as-select {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
+  outline: none;
+  font-size: 14px;
+  transition: border-color var(--transition), background var(--transition);
+}
+.as-input:focus,
+.as-textarea:focus,
+.as-select:focus { border-color: var(--accent); }
+
+.as-textarea { min-height: 110px; resize: vertical; }
+.as-textarea.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
 }
 
-.as-textarea { min-height:110px; }
-.as-textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+/* ---- Label pour champs manuels (hors as-card label) ---- */
+.as-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-weight: 600;
+  margin-bottom: 5px;
+  letter-spacing: 0.02em;
+}
 
+/* ---- Checkbox ---- */
+.as-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* ---- Zone test email ---- */
 .as-testmail {
-  display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.as-testmail-label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 220px;
+  font-size: 12px;
+  color: var(--text-subtle);
+  font-weight: 600;
+}
+
+/* ---- Boutons ---- */
+.as-btn {
+  padding: 9px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--transition);
+}
+.as-btn:hover { background: var(--raised); }
+
+.as-btn-primary {
+  padding: 9px 16px;
+  border-radius: 9px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: filter var(--transition);
+}
+.as-btn-primary:hover { filter: brightness(1.1); }
+
+.as-btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ---- Barre d'actions ---- */
+.as-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-dim);
+}
+
+/* ---- Code inline ---- */
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--accent);
+}
+
+/* ---- Alert / info ---- */
+.as-alert {
+  background: var(--danger-dim);
+  border: 1px solid var(--danger-border);
+  color: var(--danger);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+}
+.as-info {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
 }

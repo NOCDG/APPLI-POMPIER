@@ -554,38 +554,32 @@ export default function PersonnelsPage() {
         })}
       </section>
 
-      {/* --- Modal temporaire pour afficher le mot de passe --- */}
+      {/* --- Modal mot de passe temporaire --- */}
       {tempPasswordModal.visible && (
         <div className="pg-modal-backdrop" onClick={() => setTempPasswordModal({ visible: false })}>
-          <div className="pg-modal" onClick={(e)=>e.stopPropagation()}>
-            <h3>Utilisateur créé</h3>
+          <div className="pg-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Utilisateur créé ✓</h3>
             <p>Copie le mot de passe temporaire et transmets-le à l'agent.</p>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <div className="pg-modal-pwd-row">
               <input
                 readOnly
                 value={pwdMasked ? (tempPasswordModal.pwd ?? '').replace(/./g, '•') : (tempPasswordModal.pwd ?? '')}
-                style={{ flex: 1, padding: 8, fontSize: 16 }}
               />
-              <button
-                className="pg-btn-secondary"
-                onClick={() => setPwdMasked(prev => !prev)}
-                title={pwdMasked ? "Afficher" : "Masquer"}
-              >
+              <button className="pg-btn-secondary" onClick={() => setPwdMasked(prev => !prev)}>
                 {pwdMasked ? "👁️" : "🙈"}
               </button>
               <button
                 className="pg-btn-primary"
                 onClick={() => tempPasswordModal.pwd && copyToClipboard(tempPasswordModal.pwd)}
-                title="Copier le mot de passe"
               >
                 Copier
               </button>
             </div>
 
-            {copyStatus ? <div style={{ marginBottom: 8 }}>{copyStatus}</div> : null}
+            {copyStatus && <div className="pg-copy-status">{copyStatus}</div>}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <div className="pg-modal-actions">
               <button className="pg-btn" onClick={() => setTempPasswordModal({ visible: false })}>
                 Fermer
               </button>
