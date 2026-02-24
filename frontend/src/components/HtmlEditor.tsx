@@ -29,7 +29,7 @@ const formats = [
 
 export default function HtmlEditor({ value, onChange, placeholder, height = 180 }: Props) {
   return (
-    <div className="html-editor" style={{ background:"#0b0f20", border:"1px solid #2e3a66", borderRadius:10 }}>
+    <div className="html-editor" style={{ background:"var(--surface-3)", border:"1px solid var(--border)", borderRadius:10 }}>
       <ReactQuill
         theme="snow"
         value={value || ""}
@@ -39,12 +39,12 @@ export default function HtmlEditor({ value, onChange, placeholder, height = 180 
         formats={formats}
       />
       <style>{`
-        .ql-toolbar.ql-snow { border: none; border-bottom: 1px solid #2e3a66; background:#0d1226; }
-        .ql-container.ql-snow { border: none; min-height:${typeof height === "number" ? `${height}px` : height}; background:#0b0f20; color:#e9eeff; }
-        .ql-snow .ql-picker { color:#e9eeff; }
-        .ql-snow .ql-stroke { stroke:#e9eeff; }
-        .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill:#e9eeff; }
-        .ql-editor a { color:#9ec1ff; }
+        .ql-toolbar.ql-snow { border: none; border-bottom: 1px solid var(--border); background:var(--surface-2); }
+        .ql-container.ql-snow { border: none; min-height:${typeof height === "number" ? `${height}px` : height}; background:var(--surface-3); color:var(--text); }
+        .ql-snow .ql-picker { color:var(--text); }
+        .ql-snow .ql-stroke { stroke:var(--text-subtle); }
+        .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill:var(--text-subtle); }
+        .ql-editor a { color:var(--accent); }
       `}</style>
     </div>
   );

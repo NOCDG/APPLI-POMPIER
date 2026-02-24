@@ -23,6 +23,19 @@ import { RoleGuard } from './auth/guards'
 import AdminSettingsPage from './pages/AdminSettingsPage'
 import ForgotPassword from "./pages/ForgotPassword"
 import ResetPassword from "./pages/ResetPassword"
+import { ThemeProvider } from './ThemeContext'
+
+/** Enveloppe commune : Nav sticky + contenu centré */
+function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="shell">
+      <Nav />
+      <div className="shell-content">
+        {children}
+      </div>
+    </div>
+  )
+}
 
 function CalendarView() {
   const now = new Date()
@@ -73,166 +86,95 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
 
-      {/* Accueil : ouvert à tous les utilisateurs connectés */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <div className="app">
-              <Nav />
-              <Home />
-            </div>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/" element={
+        <ProtectedRoute>
+          <AppShell><Home /></AppShell>
+        </ProtectedRoute>
+      } />
 
-      {/* Calendrier global — réservé encadrement */}
-      <Route
-        path="/calendrier"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
-              <div className="app">
-                <Nav />
-                <CalendarView />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/calendrier" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
+            <AppShell><CalendarView /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      <Route
-        path="/personnels"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
-              <div className="app">
-                <Nav />
-                <PersonnelsPage />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/personnels" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
+            <AppShell><PersonnelsPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      <Route
-        path="/equipes"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
-              <div className="app">
-                <Nav />
-                <EquipesPage />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/equipes" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
+            <AppShell><EquipesPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      <Route
-        path="/competences"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
-              <div className="app">
-                <Nav />
-                <CompetencesPage />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/competences" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
+            <AppShell><CompetencesPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      <Route
-        path="/piquets"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
-              <div className="app">
-                <Nav />
-                <PiquetsPage />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/piquets" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
+            <AppShell><PiquetsPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      {/* Planification — accessible CHEF_EQUIPE & ADJ aussi */}
-      <Route
-        path="/planning"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE', 'CHEF_EQUIPE', 'ADJ_CHEF_EQUIPE']}>
-              <div className="app">
-                <Nav />
-                <PlanningPage />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/planning" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE', 'CHEF_EQUIPE', 'ADJ_CHEF_EQUIPE']}>
+            <AppShell><PlanningPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      {/* Calendrier par équipe — réservé encadrement */}
-      <Route
-        path="/calendrier-equipe"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
-              <div className="app">
-                <Nav />
-                <EquipeCalendarPage />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/calendrier-equipe" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
+            <AppShell><EquipeCalendarPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-        <Route
-          path="/saisies-gardes"
-          element={
-            <ProtectedRoute>
-              <RoleGuard roles={['ADMIN','OFFICIER','OPE']}>
-                <div className="app">
-                  <Nav />
-                  <SaisieGardesPage />
-                </div>
-              </RoleGuard>
-            </ProtectedRoute>
-          }
-        />
+      <Route path="/saisies-gardes" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE']}>
+            <AppShell><SaisieGardesPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-        <Route
-          path="/vision-gardes"
-          element={
-            <ProtectedRoute>
-              <RoleGuard roles={['ADMIN','OFFICIER','OPE','AGENT']}>
-                <div className="app">
-                  <Nav />
-                  <VisionGardesPage />
-                </div>
-              </RoleGuard>
-            </ProtectedRoute>
-          }
-        />
+      <Route path="/vision-gardes" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE', 'AGENT']}>
+            <AppShell><VisionGardesPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      {/* ⚙️ Paramètres — ADMIN seulement */}
-      <Route
-        path="/admin/settings"
-        element={
-          <ProtectedRoute>
-            <RoleGuard roles={['ADMIN']}>
-              <div className="app">
-                <Nav />
-                <AdminSettingsPage />
-              </div>
-            </RoleGuard>
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/admin/settings" element={
+        <ProtectedRoute>
+          <RoleGuard roles={['ADMIN']}>
+            <AppShell><AdminSettingsPage /></AppShell>
+          </RoleGuard>
+        </ProtectedRoute>
+      } />
 
-      <Route path="*" element={<Navigate to="/" replace />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
@@ -240,9 +182,11 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

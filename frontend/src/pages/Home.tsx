@@ -15,6 +15,7 @@ type Garde = {
   is_weekend: boolean;
   is_holiday: boolean;
   equipe_id?: number | null;
+  validated?: boolean;
 };
 
 type Piquet = { id: number; code?: string; libelle?: string };
@@ -77,7 +78,7 @@ export default function Home() {
         const todayISO = new Date().toISOString().slice(0, 10);
 
         const merged = [...(g1 || []), ...(g2 || [])]
-          .filter((g: Garde) => gardeIdsMine.has(g.id) && g.date >= todayISO)
+          .filter((g: Garde) => gardeIdsMine.has(g.id) && g.date >= todayISO && g.validated === true)
           .sort((a: Garde, b: Garde) =>
             a.date === b.date ? (a.slot > b.slot ? 1 : -1) : a.date.localeCompare(b.date),
           )
@@ -114,16 +115,13 @@ export default function Home() {
     }
 
   return (
-    <div className="app">
+    <div>
       <h2 style={{ marginBottom: 16 }}>🗓️ Mes prochaines gardes</h2>
 
       {loading ? (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="home-skel-list">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} style={{
-              height: 86, borderRadius: 14, background: "rgba(255,255,255,0.05)",
-              animation: "pulse 1.6s ease-in-out infinite"
-            }}/>
+            <div key={i} className="home-skel" />
           ))}
         </div>
       ) : error ? (
@@ -133,42 +131,22 @@ export default function Home() {
           Aucune affectation à venir.
         </div>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: 16,
-          }}
-        >
+        <div className="home-list">
           {gardes.map((g) => {
             const piquet = piquetForGarde(g.id);
             const eq = equipeForGarde(g);
             const isNight = g.slot === "NUIT";
             return (
-              <div
-                key={g.id}
-                style={{
-                  position: "relative",
-                  background: "var(--card)",
-                  borderRadius: 14,
-                  padding: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  boxShadow: "0 3px 10px rgba(0,0,0,0.25)",
-                  border: "1px solid #2e3a66",
-                }}
-              >
-                {/* Ligne date + badges (WE/JF) – rien n’est sous le badge équipe */}
+              <div key={g.id} className="home-card" style={{ position: "relative" }}>
+                {/* Date + badges WE/JF */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ fontWeight: 700, textTransform: "capitalize" }}>
-                    {formatDate(g.date)} {g.is_holiday ? (              
-                    
-                      <span className="chip" style={{ background: "var(--warn)", color: "#000" }}>JF</span>
-                    ) : g.is_weekend ? (
-                      <span className="chip" style={{ background: "#5da9ff", color: "#001" }}>WE</span>
-                    ) : null}
-                  
+                    {formatDate(g.date)}{" "}
+                    {g.is_holiday
+                      ? <span className="chip chip-jf">JF</span>
+                      : g.is_weekend
+                      ? <span className="chip chip-we">WE</span>
+                      : null}
                   </div>
                 </div>
 
@@ -180,7 +158,7 @@ export default function Home() {
                       top: 10,
                       right: 10,
                       background: "var(--accent)",
-                      color: "#000",
+                      color: "var(--on-accent)",
                       padding: "3px 10px",
                       borderRadius: 999,
                       fontSize: 12,
@@ -198,7 +176,7 @@ export default function Home() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span
                     style={{
-                      background: isNight ? "#4060d8" : "#1ec28b",
+                      background: isNight ? "var(--accent)" : "var(--ok)",
                       color: "#fff",
                       borderRadius: 999,
                       padding: "4px 10px",
@@ -213,38 +191,18 @@ export default function Home() {
                   </span>
 
                   <span
-                    style={{
-                      background: "#1b2544",
-                      border: "1px solid #2e3a66",
-                      borderRadius: 999,
-                      padding: "5px 12px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                    }}
+                    className="chip"
                     title={piquet?.libelle || ""}
                   >
                     {piquet ? `👷 ${piquet.code || piquet.libelle || `Piquet #${piquet.id}`}` : "—"}
                   </span>
                 </div>
-
-                
               </div>
             );
           })}
         </div>
       )}
 
-      {/* mini pulse keyframes */}
-      <style>
-        {`@keyframes pulse {
-            0% { opacity: .5 }
-            50% { opacity: .9 }
-            100% { opacity: .5 }
-        }
-        .chip{border-radius:999px;padding:4px 10px;font-weight:700;font-size:12px}
-        .home-alert{background:#5b1a1a;border:1px solid #8b2b2b;color:#ffdede;padding:12px;border-radius:12px}
-        `}
-      </style>
     </div>
   );
 }

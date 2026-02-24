@@ -212,15 +212,18 @@ export default function AdminSettingsPage() {
             </div>
 
             <div className="as-testmail">
-              <input className="as-input" placeholder="Adresse test…" value={testTo} onChange={e=>setTestTo(e.target.value)}/>
-              <button className="pl-btn" onClick={onTestEmail}>📬 Envoyer un mail de test</button>
+              <label className="as-testmail-label">
+                Destinataire test
+                <input className="as-input" placeholder="prenom.nom@exemple.fr" value={testTo} onChange={e=>setTestTo(e.target.value)}/>
+              </label>
+              <button className="as-btn" onClick={onTestEmail}>📬 Envoyer un mail de test</button>
             </div>
           </fieldset>
 
           {/* Templates mail */}
           <fieldset className="as-card">
             <legend>🧩 Modèles d’e-mails</legend>
-            <p className="pl-muted" style={{ marginTop: -6 }}>
+            <p style={{ color: "var(--text-muted)", marginTop: 0, marginBottom: 14, fontSize: 13 }}>
             Variables disponibles :
             {' '}
             <code>{"{{mois}}"}</code>, <code>{"{{equipe}}"}</code>, <code>{"{{validateur}}"}</code>,
@@ -252,9 +255,9 @@ export default function AdminSettingsPage() {
             </div>
           </fieldset>
 
-          <div style={{display:"flex", gap:8, marginTop:12}}>
-            <button className="pl-btn" onClick={onSave} disabled={saving}>
-              💾 Enregistrer
+          <div className="as-actions">
+            <button className="as-btn-primary" onClick={onSave} disabled={saving}>
+              {saving ? "Enregistrement…" : "💾 Enregistrer les paramètres"}
             </button>
           </div>
         </>

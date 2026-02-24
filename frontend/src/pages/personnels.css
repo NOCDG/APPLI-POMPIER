@@ -1,186 +1,374 @@
-/* container */
+/* =====================================================
+   PERSONNELS / ÉQUIPES / PIQUETS / COMPÉTENCES
+   CSS partagé — thème via variables CSS globales
+   ===================================================== */
+
 .pg-container {
   max-width: 1100px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* titles */
+/* ---- Titre de page ---- */
 .pg-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 12px 0 4px;
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.3px;
 }
 .pg-subtitle {
-  color: #6b7aa8;
-  margin-top: 0;
+  color: var(--text-muted);
+  margin: 0;
+  font-size: 14px;
 }
 
-/* cards / sections */
+/* ---- Section card ---- */
 .pg-card {
-  border: 1px solid #2e3a66;
-  border-radius: 14px;
-  padding: 12px;
-  background: #0d1226;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition), border-color var(--transition);
 }
-.pg-mt-12 { margin-top: 12px; }
+.pg-mt-12 { margin-top: 0; }
+
 .pg-section-header {
   font-weight: 700;
-  margin-bottom: 10px;
+  margin: 0 0 14px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 16px;
+  font-size: 14px;
+  color: var(--text);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-dim);
 }
 
-/* form */
+/* ---- Formulaire grille ---- */
 .pg-grid6 {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
 }
-.pg-field { display: flex; flex-direction: column; gap: 6px; }
-.pg-label { font-size: 13px; color: #a9b6dd; }
+@media (max-width: 900px) { .pg-grid6 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 580px)  { .pg-grid6 { grid-template-columns: 1fr; } }
+
+.pg-field { display: flex; flex-direction: column; gap: 5px; }
+.pg-label { font-size: 12px; color: var(--text-subtle); font-weight: 600; letter-spacing: 0.02em; }
+.pg-help  { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 .pg-input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #2e3a66;
-  background: #0b0f20;
-  color: #e9eeff;
+  padding: 9px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
   outline: none;
+  font-size: 14px;
+  width: 100%;
+  transition: border-color var(--transition), background var(--transition);
 }
-.pg-actions-right { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.pg-input:focus { border-color: var(--accent); }
+.pg-input[type="color"] { padding: 4px 8px; height: 38px; cursor: pointer; }
 
-/* buttons */
-.pg-btn-primary {
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid #3b82f6;
-  background: #1d4ed8;
-  color: #fff;
-  cursor: pointer;
+.pg-actions-right {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 4px;
 }
+
+/* ---- Boutons ---- */
+.pg-btn-primary {
+  padding: 9px 16px;
+  border-radius: 9px;
+  border: none;
+  background: var(--accent);
+  color: var(--on-accent);
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+  transition: filter var(--transition);
+  white-space: nowrap;
+}
+.pg-btn-primary:hover { filter: brightness(1.1); }
+
 .pg-btn-secondary {
   padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid #2e3a66;
-  background: #111735;
-  color: #e9eeff;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--transition);
 }
+.pg-btn-secondary:hover { background: var(--raised); }
 
-/* list & cards */
-.pg-list { margin-top: 16px; }
+.pg-btn-mini {
+  padding: 5px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background var(--transition);
+}
+.pg-btn-mini:hover { background: var(--raised); }
+
+.pg-btn {
+  padding: 8px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  transition: background var(--transition);
+}
+.pg-btn:hover { background: var(--raised); }
+
+.pg-btn-danger {
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--danger-border);
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--transition);
+}
+.pg-btn-danger:hover { background: var(--danger-dim); }
+
+/* ---- Liste de cartes ---- */
+.pg-list { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---- Carte personne / équipe / piquet ---- */
 .pg-person-card {
-  border: 1px solid #2e3a66;
+  border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 12px;
-  background: #0d1226;
-  margin-bottom: 10px;
+  padding: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition:
+    background var(--transition),
+    border-color var(--transition),
+    box-shadow var(--transition);
 }
-.pg-person-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.pg-person-name { font-weight: 700; }
-.pg-person-meta { color: #6b7aa8; font-size: 13px; }
+.pg-person-card:hover { box-shadow: var(--shadow-md); }
 
-/* avatar */
-.pg-avatar {
-  width: 36px; height: 36px; border-radius: 999px;
-  background: #1f2a4e; color: #e9eeff;
-  display: inline-flex; align-items: center; justify-content: center;
+.pg-person-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-dim);
+  margin-bottom: 2px;
+}
+.pg-person-head-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.pg-person-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.pg-person-name {
   font-weight: 700;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.3;
+}
+.pg-person-meta {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 3px;
+  line-height: 1.7;
 }
 
-/* blocks */
-.pg-block { margin-top: 8px; }
-.pg-subtitle { font-weight: 600; color: #a9b6dd; }
+/* ---- Avatar ---- */
+.pg-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), #c4b5fd);
+  color: var(--on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+  letter-spacing: -1px;
+}
 
-/* pills */
-.pg-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+/* ---- Blocs sous la carte ---- */
+.pg-block {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-dim);
+}
+.pg-subtitle {
+  font-weight: 700;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 8px;
+}
+
+/* ---- Pills / badges ---- */
+.pg-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+
 .pg-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 8px; border-radius: 999px;
-  border: 1px solid #2e3a66; background: #0b0f20; font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  font-size: 13px;
+  color: var(--text);
+  transition: background var(--transition);
 }
-.pg-empty { color: #7b8ab8; }
+.pg-empty { color: var(--text-muted); font-size: 13px; font-style: italic; }
 
-/* inline row */
+/* ---- Inline row ---- */
 .pg-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-/* icon btn */
+/* ---- Icône bouton (supprimer dans pill) ---- */
 .pg-icon-btn {
-  border: none; background: transparent; cursor: pointer;
-  font-size: 14px; line-height: 1; padding: 0; margin-left: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 3px;
+  margin-left: 1px;
+  color: var(--text-muted);
+  border-radius: 4px;
+  transition: color var(--transition), background var(--transition);
 }
+.pg-icon-btn:hover { color: var(--danger); background: var(--danger-dim); }
 
-/* Pastilles d'équipe */
+/* ---- Badge équipe coloré ---- */
 .pg-team-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   margin-left: 6px;
   font-weight: 600;
-  font-size: 13px;
-  border-radius: 999px;
-  padding: 3px 8px;
-  background: #1f2937;
-  color: #fff;
+  font-size: 12px;
+  border-radius: 6px;
+  padding: 2px 8px;
+  background: var(--raised);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
+.team-a { background: #2563eb; color: #fff; border-color: transparent; }
+.team-b { background: #dc2626; color: #fff; border-color: transparent; }
+.team-c { background: #16a34a; color: #fff; border-color: transparent; }
+.team-d { background: #eab308; color: #111; border-color: transparent; }
+.team-x { background: var(--text-muted); color: #fff; border-color: transparent; }
 
-/* Couleurs par équipe */
-.team-a { background: #2563eb; } /* bleu */
-.team-b { background: #dc2626; } /* rouge */
-.team-c { background: #16a34a; } /* vert */
-.team-d { background: #eab308; color: #111; } /* jaune lisible */
-.team-x { background: #6b7280; } /* fallback gris */
-
-/* header de carte avec actions à droite */
-.pg-person-head {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px; margin-bottom: 8px;
-}
-.pg-person-head-left { display: flex; align-items: center; gap: 10px; }
-
-/* bouton danger */
-.pg-btn-danger {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid #b91c1c;
-  background: #7f1d1d;
-  color: #fff;
+/* ---- Inline edit ---- */
+.pg-editable {
   cursor: pointer;
+  border-bottom: 1px dashed var(--border);
+  display: inline;
+  transition: color var(--transition), border-color var(--transition);
 }
-.pg-btn-danger:hover { background: #991b1b; }
+.pg-editable:hover { border-bottom-color: var(--accent); color: var(--accent); }
 
-/* backdrop */
+.pg-input-inline {
+  padding: 4px 8px;
+  min-width: 100px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.pg-input-inline:focus { border-color: var(--accent); }
+
+/* ---- Backdrop + Modal ---- */
 .pg-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1200;
+  backdrop-filter: blur(4px);
 }
 
-/* modal */
 .pg-modal {
-  background: white;
-  padding: 18px;
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 24px;
+  border-radius: 18px;
   min-width: 360px;
-  max-width: 90%;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  max-width: 92%;
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
 }
+.pg-modal h3 { margin: 0 0 6px; font-size: 18px; }
+.pg-modal > p { color: var(--text-muted); margin: 0 0 16px; font-size: 14px; }
 
-.pg-editable { cursor: pointer; border-bottom: 1px dashed transparent; }
-.pg-editable:hover { border-bottom-color: rgba(255,255,255,0.35); }
-
-.pg-input-inline {
-  padding: 4px 6px;
-  min-width: 120px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  font-size: 0.95rem;
+.pg-modal-pwd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pg-modal-pwd-row input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  font-family: ui-monospace, monospace;
+}
+.pg-copy-status {
+  font-size: 12px;
+  color: var(--ok);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.pg-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-dim);
 }
