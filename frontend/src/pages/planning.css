@@ -96,8 +96,8 @@ main {
 
 .pl-day {
   flex: 0 0 auto;
-  min-width: 320px;
-  max-width: 400px;
+  min-width: 380px;
+  max-width: 460px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
@@ -146,23 +146,23 @@ main {
 }
 
 /* ===== Tableau piquets ===== */
-.pl-rows { display: flex; flex-direction: column; gap: 6px; }
+.pl-rows { display: flex; flex-direction: column; gap: 4px; }
 .pl-row {
-  display: grid;
-  grid-template-columns: 76px 1fr auto;
-  gap: 8px;
+  display: flex;
   align-items: center;
-  padding: 4px 6px;
+  gap: 6px;
+  padding: 3px 6px;
   border-radius: 7px;
   transition: background var(--transition);
 }
 .pl-row:hover { background: var(--card-pill-bg); }
 
 .pl-piquet {
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 6px;
   font-size: 11px;
   font-weight: 700;
@@ -175,11 +175,11 @@ main {
 }
 
 .pl-assignee {
+  flex: 0 0 auto;
   min-height: 26px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  width: 100%;
+  overflow: hidden;
 }
 
 .pl-pill {
@@ -209,7 +209,7 @@ main {
 .pl-empty-small { color: var(--card-text-muted); }
 
 /* Actions */
-.pl-actions { display: flex; justify-content: flex-end; }
+.pl-actions { flex: 0 0 auto; display: flex; align-items: center; margin-left: auto; min-width: 28px; }
 
 .pl-btn-mini {
   padding: 6px 8px;
