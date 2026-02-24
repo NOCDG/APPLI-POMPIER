@@ -228,12 +228,20 @@ input[type="search"]:focus { border-color: var(--accent); }
 
 .nav-inner {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
-  height: 56px;
+}
+
+/* ---- Ligne 1 : titre + contrôles ---- */
+.nav-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 52px;
+  border-bottom: 1px solid var(--border-dim);
 }
 
 .nav-brand {
@@ -242,7 +250,6 @@ input[type="search"]:focus { border-color: var(--accent); }
   gap: 9px;
   text-decoration: none;
   flex-shrink: 0;
-  margin-right: 8px;
 }
 
 .nav-badge {
@@ -260,54 +267,10 @@ input[type="search"]:focus { border-color: var(--accent); }
 
 .nav-brand-name {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text);
   letter-spacing: -0.2px;
   white-space: nowrap;
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 1px;
-  flex: 1;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.nav-links::-webkit-scrollbar { display: none; }
-
-.nav-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 10px;
-  border-radius: 7px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-muted);
-  text-decoration: none;
-  white-space: nowrap;
-  transition: background var(--transition), color var(--transition);
-  cursor: pointer;
-}
-
-.nav-link:hover {
-  background: var(--raised);
-  color: var(--text);
-}
-
-.nav-link.active {
-  background: var(--accent-dim);
-  color: var(--accent);
-  font-weight: 600;
-}
-
-.nav-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--border);
-  margin: 0 4px;
-  flex-shrink: 0;
 }
 
 .nav-right {
@@ -318,13 +281,13 @@ input[type="search"]:focus { border-color: var(--accent); }
 }
 
 .nav-user {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--text-muted);
-  padding: 4px 9px;
+  padding: 4px 10px;
   border-radius: 7px;
   background: var(--raised);
   white-space: nowrap;
-  max-width: 160px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -358,6 +321,46 @@ input[type="search"]:focus { border-color: var(--accent); }
   transition: background var(--transition);
 }
 .nav-logout:hover { background: var(--danger-dim); }
+
+/* ---- Ligne 2 : menu ---- */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.nav-links::-webkit-scrollbar { display: none; }
+
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition);
+  cursor: pointer;
+}
+.nav-link:hover { background: var(--raised); color: var(--text); }
+.nav-link.active {
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
 
 /* =========================================
    TABLEAU GLOBAL

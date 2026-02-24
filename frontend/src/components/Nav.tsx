@@ -23,13 +23,36 @@ export default function Nav() {
     <header className="nav-header">
       <div className="nav-inner">
 
-        {/* Marque */}
-        <Link to="/" className="nav-brand">
-          <span className="nav-badge">FG</span>
-          <span className="nav-brand-name">Feuille de Garde</span>
-        </Link>
+        {/* Ligne 1 : marque + contrôles utilisateur */}
+        <div className="nav-top">
+          <Link to="/" className="nav-brand">
+            <span className="nav-badge">FG</span>
+            <span className="nav-brand-name">Feuille de Garde</span>
+          </Link>
 
-        {/* Liens navigation */}
+          <div className="nav-right">
+            <button
+              className="nav-theme-btn"
+              onClick={toggle}
+              title={theme === "dark" ? "Mode clair" : "Mode sombre"}
+              aria-label="Basculer le thème"
+            >
+              {theme === "dark" ? "☀" : "☽"}
+            </button>
+
+            {user && (
+              <span className="nav-user" title={user.roles?.join(", ")}>
+                {user.full_name || user.email}
+              </span>
+            )}
+
+            <button className="nav-logout" onClick={logout}>
+              Déconnexion
+            </button>
+          </div>
+        </div>
+
+        {/* Ligne 2 : liens de navigation */}
         <nav className="nav-links">
           {navLink("/", "Accueil", true)}
 
@@ -56,27 +79,6 @@ export default function Nav() {
             navLink("/admin/settings", "⚙ Paramètres")}
         </nav>
 
-        {/* Zone droite */}
-        <div className="nav-right">
-          <button
-            className="nav-theme-btn"
-            onClick={toggle}
-            title={theme === "dark" ? "Mode clair" : "Mode sombre"}
-            aria-label="Basculer le thème"
-          >
-            {theme === "dark" ? "☀" : "☽"}
-          </button>
-
-          {user && (
-            <span className="nav-user" title={user.roles?.join(", ")}>
-              {user.full_name || user.email}
-            </span>
-          )}
-
-          <button className="nav-logout" onClick={logout}>
-            Déconnexion
-          </button>
-        </div>
       </div>
     </header>
   )
