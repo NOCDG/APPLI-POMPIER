@@ -202,7 +202,7 @@ jobs:
       - name: Installer dépendances Python sur le serveur
         run: |
           ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} \
-            "/opt/feuille-garde/venv/bin/pip install -r /opt/feuille-garde/app/backend/requirements.txt --quiet"
+            "/opt/feuille-garde/app/backend/venv/bin/pip install -r /opt/feuille-garde/app/backend/requirements.txt --quiet"
 
       - name: Redémarrer backend + recharger Nginx
         run: |
