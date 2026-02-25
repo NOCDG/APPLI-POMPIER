@@ -230,6 +230,11 @@
   cursor: pointer;
 }
 
+/* ===== Section Pro 24h ===== */
+.sg-subtitle-pro {
+  color: var(--warn);
+}
+
 /* Badges validation (partagés) */
 .pl-badge-ok, .sg-badge-ok {
   display: inline-flex; align-items: center; gap: 4px;

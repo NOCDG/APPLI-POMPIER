@@ -20,10 +20,11 @@ from app.core.security import (
     ensure_can_modify_garde, require_roles
 )
 from app.db.models import (
-    Garde, Holiday, Slot, Equipe,
+    Garde, Holiday, Slot, Statut, Equipe,
     Piquet, PiquetCompetence,
     Personnel, PersonnelCompetence,
     Affectation, Personnel as PersonnelModel, PersonnelRole, RoleEnum,
+    Indisponibilite,
 )
 from app.schemas.garde import (
     GardeRead, GenerateMonthRequest, GardeCreate,
@@ -396,7 +397,8 @@ def valider_mois(
     piquet_map = {a.piquet_id: db.get(Piquet, a.piquet_id) for a in affs}
 
     # 6️⃣ Grouper par personnel
-    pers_map: dict[int, list[tuple[str, str, str]]] = {}
+    # tuple : (date, slot, piquet_label, statut_service)
+    pers_map: dict[int, list[tuple[str, str, str, str]]] = {}
     for a in affs:
         g = garde_map.get(a.garde_id)
         if not g:
@@ -405,26 +407,153 @@ def valider_mois(
         pers_map.setdefault(a.personnel_id, []).append((
             g.date.strftime("%d/%m/%Y"),
             g.slot.name.capitalize(),
-            pqt.libelle or pqt.code or "—"
+            pqt.libelle or pqt.code or "—",
+            (a.statut_service or "volontaire").lower(),
         ))
 
     # 7️⃣ Envoyer un mail à chaque pompier
     subject_user = f"Vos gardes – {mois_nom} – {equipe_nom}"
     personnels = db.scalars(select(Personnel).where(Personnel.id.in_(pers_map.keys()))).all()
 
+    # 7.5️⃣ Générer le PDF de la feuille de garde
+    pdf_bytes: bytes | None = None
+    pdf_filename: str | None = None
+    try:
+        from app.services.pdf_generator import generate_feuille_garde_pdf
+
+        # Noms des agents ayant des affectations
+        pers_name_map = {
+            p.id: f"{p.prenom or ''} {p.nom or ''}".strip()
+            for p in personnels
+        }
+
+        # Tous les piquets (triés par position puis code), même ceux non utilisés
+        pq_rows = db.scalars(
+            select(Piquet).order_by(Piquet.position, Piquet.code)
+        ).all()
+        pdf_piquets: list[dict] = [
+            {"id": p.id, "label": p.libelle or p.code or f"P{p.id}"}
+            for p in pq_rows
+        ]
+
+        # aff_map : {garde_id: {piquet_id: agent_fullname}}
+        pdf_aff_map: dict[int, dict[int, str]] = {}
+        for a in affs:
+            pdf_aff_map.setdefault(a.garde_id, {})[a.piquet_id] = (
+                pers_name_map.get(a.personnel_id, "?")
+            )
+
+        # Membres actifs de l'équipe
+        team_members = db.scalars(
+            select(Personnel).where(
+                Personnel.equipe_id == equipe_id,
+                Personnel.is_active.is_(True),
+            )
+        ).all()
+        team_ids = {p.id for p in team_members}
+        team_names = {
+            p.id: f"{p.prenom or ''} {p.nom or ''}".strip()
+            for p in team_members
+        }
+
+        # Indisponibilités
+        indispos = db.scalars(
+            select(Indisponibilite).where(Indisponibilite.garde_id.in_(garde_ids))
+        ).all()
+        indispo_by_garde: dict[int, set[int]] = {}
+        for i in indispos:
+            indispo_by_garde.setdefault(i.garde_id, set()).add(i.personnel_id)
+
+        # Affectés par garde
+        assigned_by_garde: dict[int, set[int]] = {}
+        for a in affs:
+            assigned_by_garde.setdefault(a.garde_id, set()).add(a.personnel_id)
+
+        pdf_non_aff_map: dict[int, list[str]] = {}
+        pdf_indispo_map: dict[int, list[str]] = {}
+        for g in gardes:
+            assigned = assigned_by_garde.get(g.id, set())
+            indispo_ids = indispo_by_garde.get(g.id, set())
+            pdf_non_aff_map[g.id] = sorted(
+                team_names[pid] for pid in team_ids
+                if pid not in assigned and pid not in indispo_ids
+            )
+            pdf_indispo_map[g.id] = sorted(
+                team_names[pid] for pid in team_ids & indispo_ids
+            )
+
+        garde_data_for_pdf = [
+            {
+                "id": g.id,
+                "date": g.date,
+                "slot": g.slot.name if hasattr(g.slot, "name") else str(g.slot),
+            }
+            for g in sorted(gardes, key=lambda g: (
+                g.date,
+                0 if (g.slot.name if hasattr(g.slot, "name") else str(g.slot)) == "JOUR" else 1,
+            ))
+        ]
+
+        pdf_bytes = generate_feuille_garde_pdf(
+            equipe_label=equipe_nom,
+            mois_label=mois_nom,
+            gardes=garde_data_for_pdf,
+            piquets=pdf_piquets,
+            aff_map=pdf_aff_map,
+            non_aff_map=pdf_non_aff_map,
+            indispo_map=pdf_indispo_map,
+        )
+        safe_equipe = equipe_nom.replace(" ", "_").replace("/", "-")
+        safe_mois = mois_nom.replace(" ", "_")
+        pdf_filename = f"feuille_garde_{safe_equipe}_{safe_mois}.pdf"
+
+    except Exception as _pdf_err:
+        import traceback
+        print(f"[PDF] ❌ Erreur génération PDF: {_pdf_err}")
+        traceback.print_exc()
+
+    print(f"[PDF] pdf_bytes={'OK (' + str(len(pdf_bytes)) + ' bytes)' if pdf_bytes else 'NONE — PJ non générée'}")
+
     for p in personnels:
         if not p.email:
             continue
+
+        all_rows = pers_map[p.id]  # list[tuple[date, slot, piquet, statut_service]]
+
+        if p.statut == Statut.PRO:
+            # PRO pur : jamais de mail
+            print(f"[MAIL] ⏭ {p.email} ignoré (statut PRO)")
+            continue
+        elif p.statut == Statut.DOUBLE:
+            # DOUBLE : mail uniquement si au moins une garde en mode volontaire
+            vol_rows = [r for r in all_rows if r[3] == "volontaire"]
+            if not vol_rows:
+                print(f"[MAIL] ⏭ {p.email} ignoré (DOUBLE sans garde volontaire)")
+                continue
+            mail_rows = vol_rows
+        else:
+            # VOLONTAIRE : toutes ses gardes
+            mail_rows = all_rows
+
         fullname = f"{p.prenom} {p.nom}".strip()
-        gardes_rows = sorted(pers_map[p.id], key=lambda r: r[0])
-        if p.equipe_id == equipe_id:
+        # Tronquer le 4e élément (statut_service) — le template attend (date, slot, piquet)
+        gardes_rows = sorted([(r[0], r[1], r[2]) for r in mail_rows], key=lambda r: r[0])
+
+        is_team = p.equipe_id == equipe_id
+        if is_team:
             html_user = build_html_agent_team(fullname, mois_nom, equipe_nom, gardes_rows)
+            attach = (
+                [(pdf_filename, pdf_bytes, "application/pdf")]
+                if pdf_bytes and pdf_filename else None
+            )
         else:
             html_user = build_html_agent_external(fullname, mois_nom, equipe_nom, gardes_rows)
+            attach = None
+        print(f"[MAIL] → {p.email} | statut={p.statut.value} | gardes={len(gardes_rows)} | pj={'OUI' if attach else 'NON'}")
         try:
-            send_mail(p.email, subject_user, html_user, db=db)
+            send_mail(p.email, subject_user, html_user, db=db, attachments=attach)
         except Exception as e:
-            print(f"[MAIL] ⚠️ Erreur envoi à {p.email}: {e}")
+            print(f"[MAIL] ❌ Erreur envoi à {p.email}: {e}")
 
     return {
         "status": "ok",

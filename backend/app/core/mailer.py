@@ -2,9 +2,11 @@
 from __future__ import annotations
 import os
 import smtplib
-from email.utils import formataddr
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import formataddr
 from typing import Iterable, Optional
 from sqlalchemy.orm import Session
 
@@ -53,10 +55,14 @@ def send_mail(
     *,
     db: Optional[Session] = None,
     reply_to: Optional[str] = None,
+    attachments: list[tuple[str, bytes, str]] | None = None,
 ) -> None:
     """
     Envoie un e-mail HTML via SMTP (TLS recommandé).
     Lit d’abord les paramètres en BDD (table app_settings), sinon variables d’environnement.
+
+    attachments: liste de (filename, data_bytes, content_type)
+                 ex. [("feuille.pdf", pdf_bytes, "application/pdf")]
     """
     username = get_setting(db, "MAIL_USERNAME", "")
     password = get_setting(db, "MAIL_PASSWORD", "")
@@ -72,14 +78,36 @@ def send_mail(
     else:
         recipients = list(to)
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = formataddr((mail_from_name, mail_from))
-    msg["To"] = ", ".join(recipients)
-    if reply_to:
-        msg["Reply-To"] = reply_to
+    if attachments:
+        # Structure : mixed > alternative (html) + fichiers joints
+        outer = MIMEMultipart("mixed")
+        outer["Subject"] = subject
+        outer["From"] = formataddr((mail_from_name, mail_from))
+        outer["To"] = ", ".join(recipients)
+        if reply_to:
+            outer["Reply-To"] = reply_to
 
-    msg.attach(MIMEText(html, "html", "utf-8"))
+        inner = MIMEMultipart("alternative")
+        inner.attach(MIMEText(html, "html", "utf-8"))
+        outer.attach(inner)
+
+        for filename, data, content_type in attachments:
+            maintype, _, subtype = content_type.partition("/")
+            part = MIMEBase(maintype, subtype or "octet-stream")
+            part.set_payload(data)
+            encoders.encode_base64(part)
+            part.add_header("Content-Disposition", "attachment", filename=filename)
+            outer.attach(part)
+
+        msg = outer
+    else:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = formataddr((mail_from_name, mail_from))
+        msg["To"] = ", ".join(recipients)
+        if reply_to:
+            msg["Reply-To"] = reply_to
+        msg.attach(MIMEText(html, "html", "utf-8"))
 
     if use_ssl:
         with smtplib.SMTP_SSL(server_host, server_port) as smtp:
