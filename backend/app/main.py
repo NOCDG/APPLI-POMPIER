@@ -20,6 +20,24 @@ from app.api.routes import (
 )
 from app.db.seed_holidays_fr import seed as seed_holidays
 
+try:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from app.services.scheduler import send_monthly_reminder
+    _scheduler = BackgroundScheduler(timezone="Europe/Paris")
+    _scheduler.add_job(
+        send_monthly_reminder,
+        "cron",
+        day=25,
+        hour=8,
+        minute=0,
+        id="monthly_reminder",
+        replace_existing=True,
+    )
+    _HAS_SCHEDULER = True
+except ImportError:
+    _HAS_SCHEDULER = False
+    print("[WARN] apscheduler non installé — rappel mensuel désactivé. Lancez : pip install apscheduler")
+
 
 app = FastAPI(title="FEUILLE_GARDE API")
 
@@ -39,6 +57,15 @@ def on_startup():
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as s:
         seed_holidays(s)
+    if _HAS_SCHEDULER:
+        _scheduler.start()
+        print("[INFO] Scheduler démarré — rappel mensuel programmé le 25 à 08h00.")
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    if _HAS_SCHEDULER:
+        _scheduler.shutdown(wait=False)
 
 
 # --- Routes ---

@@ -12,7 +12,7 @@ from app.core.security import (
 )
 
 # ⚠️ Adapte ces imports selon ton projet
-from app.core.mailer import send_email      # ta fonction existante d'envoi de mail
+from app.core.mailer import send_email, build_html_reset_password
 from app.core.config import settings      # si tu as un settings.FRONTEND_URL
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -50,44 +50,12 @@ def forgot_password(
 
     subject = "Réinitialisation de votre mot de passe - FEUILLE_GARDE"
 
-    text_body = f"""Bonjour,
+    html_body = build_html_reset_password(reset_link)
 
-Vous avez demandé à réinitialiser votre mot de passe.
-
-Cliquez sur ce lien pour choisir un nouveau mot de passe :
-{reset_link}
-
-Ce lien est valable 30 minutes.
-
-Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.
-
-Cordialement,
-L'application FEUILLE_GARDE
-"""
-
-    html_body = f"""
-    <p>Bonjour,</p>
-    <p>Vous avez demandé à réinitialiser votre mot de passe.</p>
-    <p>
-        Cliquez sur ce bouton pour choisir un nouveau mot de passe :<br/>
-        <a href="{reset_link}" style="display:inline-block;padding:10px 16px;
-           background-color:#d32f2f;color:white;text-decoration:none;
-           border-radius:4px;margin-top:8px;">
-           Réinitialiser mon mot de passe
-        </a>
-    </p>
-    <p>Ou copiez-collez ce lien dans votre navigateur :</p>
-    <p><code>{reset_link}</code></p>
-    <p>Ce lien est valable 30 minutes.</p>
-    <p>Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.</p>
-    <p>Cordialement,<br/>L'application FEUILLE_GARDE</p>
-    """
-
-    # ⚠️ ADAPTE LA SIGNATURE de send_email si différent chez toi
     send_email(
         to=payload.email,
         subject=subject,
-        text_body=text_body,
+        text_body=f"Réinitialisez votre mot de passe : {reset_link}",
         html_body=html_body,
     )
 
