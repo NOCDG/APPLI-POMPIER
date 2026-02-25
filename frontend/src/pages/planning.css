@@ -149,6 +149,7 @@ main {
 .pl-rows { display: flex; flex-direction: column; gap: 4px; }
 .pl-row {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
   padding: 3px 6px;
@@ -175,7 +176,8 @@ main {
 }
 
 .pl-assignee {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 26px;
   display: flex;
   align-items: center;
@@ -368,5 +370,14 @@ main {
 /* Non affectés */
 .pl-unassigned { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-dim); }
 .pl-unassigned-list { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* Pill indisponible */
+.pl-pill.unavail {
+  background-color: var(--danger) !important;
+  color: #fff !important;
+  border-color: var(--danger-border, var(--danger)) !important;
+  opacity: 0.9;
+}
+.pl-pill.unavail:hover { opacity: 1; }
 
 body { overflow-x: hidden; }

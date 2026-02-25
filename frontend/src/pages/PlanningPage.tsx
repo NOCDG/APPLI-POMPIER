@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   listEquipes, listPiquets, listGardes, generateMonth,
   listAffectations, createAffectation, deleteAffectation,
-  suggestPersonnels, listPersonnels, validateMonth, unvalidateMonth
+  suggestPersonnels, listPersonnels, validateMonth, unvalidateMonth,
+  listIndisponibilites, createIndisponibilite, deleteIndisponibilite,
+  type Indisponibilite,
 } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import './planning.css'
@@ -75,6 +77,7 @@ export default function PlanningPage() {
   const [piquets, setPiquets] = useState<Piquet[]>([])
   const [gardes, setGardes] = useState<Garde[]>([])
   const [affByGarde, setAffByGarde] = useState<Record<number, Affectation[]>>({})
+  const [indisByGarde, setIndisByGarde] = useState<Record<number, Indisponibilite[]>>({})
   const [allPersonnels, setAllPersonnels] = useState<Personnel[]>([])
 
   // 🆕 map id_equipe -> couleur
@@ -167,10 +170,13 @@ export default function PlanningPage() {
     setGardes(gs)
 
     const map: Record<number, Affectation[]> = {}
+    const indiMap: Record<number, Indisponibilite[]> = {}
     await Promise.all(gs.map(async g => {
       map[g.id] = await listAffectations(g.id) as any
+      indiMap[g.id] = await listIndisponibilites(g.id)
     }))
     setAffByGarde(map)
+    setIndisByGarde(indiMap)
   }
 
   useEffect(() => { loadMonth() }, [year, month, equipeId, isChef, myEquipeId])
@@ -280,6 +286,24 @@ export default function PlanningPage() {
     await deleteAffectation(aff.id)
     const updated = await listAffectations(aff.garde_id)
     setAffByGarde(prev => ({ ...prev, [aff.garde_id]: updated as any }))
+  }
+
+  async function toggleIndispo(gardeId: number, personnelId: number) {
+    if (!canModify) return
+    const existing = (indisByGarde[gardeId] || []).find(i => i.personnel_id === personnelId)
+    if (existing) {
+      await deleteIndisponibilite(existing.id)
+      setIndisByGarde(prev => ({
+        ...prev,
+        [gardeId]: (prev[gardeId] || []).filter(i => i.id !== existing.id),
+      }))
+    } else {
+      const created = await createIndisponibilite(gardeId, personnelId)
+      setIndisByGarde(prev => ({
+        ...prev,
+        [gardeId]: [...(prev[gardeId] || []), created],
+      }))
+    }
   }
 
   const filteredManual = useMemo(() => {
@@ -403,19 +427,12 @@ export default function PlanningPage() {
           } : {}
 
           return (
-            <div key={p.id} className="pl-row">
-              <div className="pl-piquet">{piquetCode(p)}</div>
+            <div key={p.id} className="pl-row" style={{ display: 'flex', flexWrap: 'nowrap', alignItems: 'center', gap: 6 }}>
+              <div className="pl-piquet" style={{ flexShrink: 0 }}>{piquetCode(p)}</div>
               <div
                 className="pl-assignee"
                 title={piquetLib(p)}
-                style={{
-                  width: 120,
-                  minWidth: 110,
-                  maxWidth: 140,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
+                style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}
               >
                 {aff ? (
                   <span className="pl-pill" style={pillStyle}>{personaTxt}</span>
@@ -423,7 +440,7 @@ export default function PlanningPage() {
                   <span className="pl-empty-small">—</span>
                 )}
               </div>
-              <div className="pl-actions">
+              <div className="pl-actions" style={{ flexShrink: 0, marginLeft: 'auto' }}>
                 {showActions ? (
                   !aff ? (
                     <button
@@ -459,7 +476,7 @@ export default function PlanningPage() {
     const unassigned = (unassignedByGarde[g.id] ?? [])
 
     return (
-      <div key={g.id} className="pl-day" style={{ minWidth: 260 }}>
+      <div key={g.id} className="pl-day">
         <div className="pl-day-head">
           <div className="pl-date">{formatDate(g.date)} — <b>{g.slot}</b></div>
           {badge && <span className="pl-chip">{badge}</span>}
@@ -507,33 +524,44 @@ export default function PlanningPage() {
                 </div>
               ) : (
                 <div className="pl-unassigned-list">
-                  {unassigned.map(p => (
-                    <span
-                      key={p.id}
-                      className="pl-pill"
-                      title={`${p.prenom} ${p.nom}`}
-                      style={{
-                        backgroundColor:
-                          (p.equipe_id && equipeColorMap[p.equipe_id]) ? equipeColorMap[p.equipe_id] : '#444',
-                        color: 'black',
-                        borderRadius: 999,
-                        padding: '3px 8px',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        margin: 3,
-                        maxWidth: 120,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {personaShort(p)}
-                      {((p.statut || '').toLowerCase() === 'pro') && <span title="Professionnel">🟣</span>}
-                    </span>
-                  ))}
+                  {unassigned.map(p => {
+                    const isIndispo = (indisByGarde[g.id] || []).some(i => i.personnel_id === p.id)
+                    return (
+                      <span
+                        key={p.id}
+                        className={`pl-pill${isIndispo ? ' unavail' : ''}`}
+                        title={
+                          canModify
+                            ? (isIndispo ? 'Indisponible — cliquer pour rendre disponible' : 'Cliquer pour marquer indisponible')
+                            : `${p.prenom} ${p.nom}`
+                        }
+                        onClick={canModify ? () => toggleIndispo(g.id, p.id) : undefined}
+                        style={{
+                          backgroundColor: isIndispo
+                            ? 'var(--danger)'
+                            : ((p.equipe_id && equipeColorMap[p.equipe_id]) ? equipeColorMap[p.equipe_id] : '#444'),
+                          color: isIndispo ? '#fff' : 'black',
+                          cursor: canModify ? 'pointer' : 'default',
+                          borderRadius: 999,
+                          padding: '3px 8px',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          margin: 3,
+                          maxWidth: 130,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                      >
+                        {isIndispo && <span style={{ flexShrink: 0 }}>🚫</span>}
+                        {personaShort(p)}
+                        {((p.statut || '').toLowerCase() === 'pro') && <span title="Professionnel">🟣</span>}
+                      </span>
+                    )
+                  })}
                 </div>
               )}
             </div>

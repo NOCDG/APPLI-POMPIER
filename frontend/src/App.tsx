@@ -21,6 +21,7 @@ import { AuthProvider } from './auth/AuthContext'
 import Home from './pages/Home'
 import { RoleGuard } from './auth/guards'
 import AdminSettingsPage from './pages/AdminSettingsPage'
+import MesIndisponibilitesPage from './pages/MesIndisponibilitesPage'
 import ForgotPassword from "./pages/ForgotPassword"
 import ResetPassword from "./pages/ResetPassword"
 import { ThemeProvider } from './ThemeContext'
@@ -161,6 +162,12 @@ function AppRoutes() {
           <RoleGuard roles={['ADMIN', 'OFFICIER', 'OPE', 'AGENT']}>
             <AppShell><VisionGardesPage /></AppShell>
           </RoleGuard>
+        </ProtectedRoute>
+      } />
+
+      <Route path="/mes-indisponibilites" element={
+        <ProtectedRoute>
+          <AppShell><MesIndisponibilitesPage /></AppShell>
         </ProtectedRoute>
       } />
 
