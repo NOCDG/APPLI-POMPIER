@@ -7,7 +7,10 @@ from pydantic import BaseModel
 from sqlalchemy import select, and_, func, exists, extract, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from app.core.mailer import send_mail, build_validation_html, MAIL_FROM_NAME
+from app.core.mailer import (
+    send_mail, build_validation_html, MAIL_FROM_NAME,
+    build_html_agent_team, build_html_agent_external,
+)
 
 from app.api.deps import get_session
 from app.core.security import (
@@ -377,10 +380,6 @@ def valider_mois(
     recipients = {VALIDATION_FIXED_RECIPIENT}
     recipients.update(_get_officier_emails(db))
 
-    # ✅ Passe db=db pour que send_mail lise la config mail via AppSetting/env
-    send_mail(sorted(recipients), subject_admin, html_admin, db=db)
-
-    # send_mail accepte un str OU un Iterable[str] ; on passe la liste
     send_mail(sorted(recipients), subject_admin, html_admin, db=db)
 
     # 5️⃣ Récupérer toutes les affectations concernées
@@ -418,11 +417,12 @@ def valider_mois(
             continue
         fullname = f"{p.prenom} {p.nom}".strip()
         gardes_rows = sorted(pers_map[p.id], key=lambda r: r[0])
-        html_user = build_validation_html(
-            fullname, mois_nom, equipe_nom, validator_fullname, MAIL_FROM_NAME, gardes_rows
-        )
+        if p.equipe_id == equipe_id:
+            html_user = build_html_agent_team(fullname, mois_nom, equipe_nom, gardes_rows)
+        else:
+            html_user = build_html_agent_external(fullname, mois_nom, equipe_nom, gardes_rows)
         try:
-            send_mail(p.email, subject_user, html_user)
+            send_mail(p.email, subject_user, html_user, db=db)
         except Exception as e:
             print(f"[MAIL] ⚠️ Erreur envoi à {p.email}: {e}")
 

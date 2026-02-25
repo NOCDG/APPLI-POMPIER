@@ -26,6 +26,13 @@ class IndispoCreate(BaseModel):
 def _is_privileged(user: Personnel) -> bool:
     return user_has_any_role(user, "ADMIN", "OFFICIER", "CHEF_EQUIPE", "ADJ_CHEF_EQUIPE")
 
+def _is_admin_off(user: Personnel) -> bool:
+    return user_has_any_role(user, "ADMIN", "OFFICIER")
+
+def _check_garde_not_validated(garde: Garde, user: Personnel) -> None:
+    if getattr(garde, "validated", False) and not _is_admin_off(user):
+        raise HTTPException(423, "Feuille validée — modification réservée à ADMIN/OFFICIER")
+
 
 @router.get("", response_model=list[IndispoRead])
 def list_indisponibilites(
@@ -54,8 +61,10 @@ def create_indisponibilite(
     else:
         target_id = user.id  # force à soi-même
 
-    if not db.get(Garde, payload.garde_id):
+    garde = db.get(Garde, payload.garde_id)
+    if not garde:
         raise HTTPException(404, "Garde introuvable")
+    _check_garde_not_validated(garde, user)
     if not db.get(Personnel, target_id):
         raise HTTPException(404, "Personnel introuvable")
 
@@ -79,6 +88,10 @@ def delete_indisponibilite(
     indi = db.get(Indisponibilite, indi_id)
     if not indi:
         raise HTTPException(404, "Indisponibilité introuvable")
+
+    garde = db.get(Garde, indi.garde_id)
+    if garde:
+        _check_garde_not_validated(garde, user)
 
     # Un non-privilégié ne peut supprimer que sa propre indisponibilité
     if not _is_privileged(user) and indi.personnel_id != user.id:

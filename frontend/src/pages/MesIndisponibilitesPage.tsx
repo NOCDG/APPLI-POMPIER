@@ -13,6 +13,7 @@ type Garde = {
   is_weekend: boolean
   is_holiday: boolean
   equipe_id: number | null
+  validated?: boolean
 }
 
 export default function MesIndisponibilitesPage() {
@@ -56,9 +57,17 @@ export default function MesIndisponibilitesPage() {
     const existing = myIndispos.find(i => i.garde_id === gardeId)
     try {
       if (existing) {
+        if (!window.confirm('Annuler votre indisponibilité sur cette garde ?')) return
         await deleteIndisponibilite(existing.id)
         setMyIndispos(prev => prev.filter(i => i.id !== existing.id))
       } else {
+        const ok = window.confirm(
+          'Déclarer une indisponibilité sur cette garde ?\n\n' +
+          '⚠️ Cette déclaration est indicative.\n' +
+          'Votre chef d\'équipe se réserve le droit de vous intégrer dans la garde ' +
+          'malgré votre indisponibilité déclarée.'
+        )
+        if (!ok) return
         const created = await createIndisponibilite(gardeId, myId)
         setMyIndispos(prev => [...prev, created])
       }
@@ -127,23 +136,27 @@ export default function MesIndisponibilitesPage() {
           <div className="mi-grid">
             {gardesSorted.map(g => {
               const isIndispo = myIndispos.some(i => i.garde_id === g.id)
+              const isLocked = !!g.validated
               return (
                 <div
                   key={g.id}
-                  className={`mi-card ${isIndispo ? 'indispo' : 'dispo'}`}
-                  onClick={() => toggle(g.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={e => e.key === 'Enter' && toggle(g.id)}
-                  title={isIndispo ? 'Cliquer pour se rendre disponible' : 'Cliquer pour se déclarer indisponible'}
+                  className={`mi-card ${isIndispo ? 'indispo' : 'dispo'} ${isLocked ? 'locked' : ''}`}
+                  onClick={isLocked ? undefined : () => toggle(g.id)}
+                  role={isLocked ? undefined : 'button'}
+                  tabIndex={isLocked ? undefined : 0}
+                  onKeyDown={isLocked ? undefined : e => e.key === 'Enter' && toggle(g.id)}
+                  title={isLocked ? 'Feuille validée — modification impossible' : (isIndispo ? 'Cliquer pour se rendre disponible' : 'Cliquer pour se déclarer indisponible')}
                 >
                   <div className="mi-card-top">
                     <span className={`mi-slot-icon ${g.slot === 'JOUR' ? 'jour' : 'nuit'}`}>
                       {g.slot === 'JOUR' ? '☀' : '🌙'}
                     </span>
-                    {(g.is_holiday || g.is_weekend) && (
-                      <span className="mi-chip">{g.is_holiday ? 'JF' : 'WE'}</span>
-                    )}
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      {(g.is_holiday || g.is_weekend) && (
+                        <span className="mi-chip">{g.is_holiday ? 'JF' : 'WE'}</span>
+                      )}
+                      {isLocked && <span className="mi-chip locked" title="Feuille validée">🔒</span>}
+                    </div>
                   </div>
 
                   <div className="mi-card-date">{formatDate(g.date)}</div>
