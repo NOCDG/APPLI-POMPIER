@@ -4,6 +4,7 @@ import {
   listGardesAllMonth,
   assignTeamToSlot,
   generateMonthAll,
+  generateYear,
   listGardes, // ✅ on récupère TOUTES les gardes du mois (avec ou sans équipe)
 } from '../api'
 import './equipe-calendar.css'
@@ -32,6 +33,11 @@ export default function EquipeCalendarPage() {
   // Génération toutes équipes
   const [busyGenAll, setBusyGenAll] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  // Génération année entière
+  const [showYearModal, setShowYearModal] = useState(false)
+  const [yearInput, setYearInput] = useState(now.getFullYear())
+  const [busyGenYear, setBusyGenYear] = useState(false)
 
   // Charge les équipes au montage (pour la liste de sélection)
   useEffect(() => {
@@ -128,6 +134,20 @@ export default function EquipeCalendarPage() {
     }
   }
 
+  async function onGenerateYear() {
+    setBusyGenYear(true)
+    try {
+      const res = await generateYear(yearInput)
+      setShowYearModal(false)
+      alert(`✅ ${res.created} garde(s) créée(s) pour ${yearInput}.`)
+      if (yearInput === year) await loadMonth()
+    } catch (e: any) {
+      alert(e?.message || 'Génération impossible')
+    } finally {
+      setBusyGenYear(false)
+    }
+  }
+
   return (
     <div className="ec-container">
       <h2 className="ec-title">📅 Calendrier des équipes de garde</h2>
@@ -155,10 +175,45 @@ export default function EquipeCalendarPage() {
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="ec-btn" onClick={onGenerateMonthForAllTeams} disabled={busyGenAll}>
-            {busyGenAll ? 'Création…' : '⚙️ Créer pour TOUTES les équipes'}
+            {busyGenAll ? 'Création…' : '⚙️ Créer le mois'}
+          </button>
+          <button className="ec-btn ec-btn-year" onClick={() => { setYearInput(now.getFullYear()); setShowYearModal(true) }}>
+            📆 Créer une année entière
           </button>
         </div>
       </div>
+
+      {/* Modal génération année */}
+      {showYearModal && (
+        <div className="ec-modal-backdrop" onClick={() => setShowYearModal(false)}>
+          <div className="ec-modal" onClick={e => e.stopPropagation()}>
+            <div className="ec-modal-head">
+              <span className="ec-modal-title">Générer une année entière</span>
+              <button className="ec-modal-close" onClick={() => setShowYearModal(false)}>✕</button>
+            </div>
+            <p className="ec-modal-desc">
+              Crée toutes les gardes de l'année sélectionnée :<br/>
+              <b>Semaine</b> → NUIT &nbsp;|&nbsp; <b>WE / JF</b> → JOUR + NUIT<br/>
+              Les gardes déjà existantes ne sont pas dupliquées.
+            </p>
+            <label className="ec-modal-label">Année</label>
+            <input
+              className="ec-modal-input"
+              type="number"
+              min={2020}
+              max={2100}
+              value={yearInput}
+              onChange={e => setYearInput(Number(e.target.value))}
+            />
+            <div className="ec-modal-actions">
+              <button className="ec-btn" onClick={() => setShowYearModal(false)}>Annuler</button>
+              <button className="ec-btn ec-btn-primary" onClick={onGenerateYear} disabled={busyGenYear}>
+                {busyGenYear ? 'Création en cours…' : `✅ Créer ${yearInput}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="ec-subtitle">Chargement…</div>

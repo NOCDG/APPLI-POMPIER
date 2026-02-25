@@ -78,8 +78,7 @@ def generate_feuille_garde_pdf(
     - Ligne « Indisponibles »
     """
     buf = BytesIO()
-    n_gardes  = len(gardes)
-    n_piquets = len(piquets)
+    n_gardes = len(gardes)
 
     # ── Largeurs colonnes ───────────────────────────────────
     usable_w = PAGE_W - 2 * MARGIN
@@ -99,14 +98,28 @@ def generate_feuille_garde_pdf(
         txt  = f"<b>{day} {d.strftime('%d/%m')}</b><br/>{slot}"
         header_row.append(_par(txt, color=_HDR_FG, size=fs))
 
-    # ── Lignes piquets (tous, même vides) ──────────────────
-    piquet_rows = []
-    for pq in piquets:
-        row = [_par(pq["label"], color=_TEXT, size=fs, bold=True, align="LEFT")]
-        for g in gardes:
-            agent = (aff_map.get(g["id"]) or {}).get(pq["id"], "")
-            row.append(_par(agent, color=_TEXT, size=fs))
-        piquet_rows.append(row)
+    # ── Lignes piquets — séparées garde / astreinte ─────────
+    garde_pqs    = [p for p in piquets if not p.get("is_astreinte")]
+    ast_pqs      = [p for p in piquets if p.get("is_astreinte")]
+
+    def _piquet_rows(pq_list: list[dict]) -> list[list]:
+        rows = []
+        for pq in pq_list:
+            row = [_par(pq["label"], color=_TEXT, size=fs, bold=True, align="LEFT")]
+            for g in gardes:
+                agent = (aff_map.get(g["id"]) or {}).get(pq["id"], "")
+                row.append(_par(agent, color=_TEXT, size=fs))
+            rows.append(row)
+        return rows
+
+    garde_rows_data   = _piquet_rows(garde_pqs)
+    ast_rows_data     = _piquet_rows(ast_pqs)
+
+    # Séparateur visuel entre gardes et astreintes
+    _SEP_BG  = colors.HexColor("#c4b5fd")   # violet clair
+    _SEP_FG  = colors.HexColor("#3b0764")
+    sep_row  = [_par("Astreinte", color=_SEP_FG, size=fs, bold=True, align="LEFT")] + \
+               [_par("", size=fs) for _ in gardes]
 
     # ── Ligne non affectés ──────────────────────────────────
     non_aff_row = [_par("Non affectés", color=_NON_AFF_C, size=fs, bold=True, align="LEFT")]
@@ -120,11 +133,23 @@ def generate_feuille_garde_pdf(
         txt = ", ".join(indispo_map.get(g["id"], []))
         indispo_row.append(_par(txt, color=_INDISPO_C, size=fs, align="LEFT"))
 
-    table_data = [header_row] + piquet_rows + [non_aff_row, indispo_row]
+    # Construction de la table : en-tête + gardes + séparateur + astreintes + non-aff + indispo
+    has_sep = bool(ast_pqs)
+    table_data = (
+        [header_row]
+        + garde_rows_data
+        + ([sep_row] if has_sep else [])
+        + ast_rows_data
+        + [non_aff_row, indispo_row]
+    )
 
-    # ── Styles table ────────────────────────────────────────
-    idx_non_aff = 1 + n_piquets
-    idx_indispo = 2 + n_piquets
+    n_garde_rows = len(garde_rows_data)
+    n_ast_rows   = len(ast_rows_data)
+    idx_sep      = 1 + n_garde_rows if has_sep else None
+    idx_ast_start= (idx_sep + 1) if has_sep else (1 + n_garde_rows)
+    total_piquet_rows = n_garde_rows + (1 if has_sep else 0) + n_ast_rows
+    idx_non_aff  = 1 + total_piquet_rows
+    idx_indispo  = 2 + total_piquet_rows
 
     style = [
         # Padding global
@@ -147,17 +172,28 @@ def generate_feuille_garde_pdf(
         ("BACKGROUND",    (0, idx_indispo), (-1, idx_indispo), _INDISPO_BG),
     ]
 
+    # Séparateur astreinte
+    if idx_sep is not None:
+        style += [
+            ("BACKGROUND",  (0, idx_sep), (-1, idx_sep), _SEP_BG),
+            ("LINEABOVE",   (0, idx_sep), (-1, idx_sep), 1.2, _BORDER),
+            ("LINEBELOW",   (0, idx_sep), (-1, idx_sep), 1.2, _BORDER),
+            ("SPAN",        (0, idx_sep), (-1, idx_sep)),
+        ]
+
     # En-têtes de garde colorés selon JOUR/NUIT
     for col_i, g in enumerate(gardes, start=1):
         bg = _JOUR_HDR if g["slot"] == "JOUR" else _NUIT_HDR
         style.append(("BACKGROUND", (col_i, 0), (col_i, 0), bg))
 
-    # Fond des lignes piquets selon JOUR/NUIT de chaque colonne
-    # + alternance blanc / très léger pour les lignes
-    for row_i in range(1, 1 + n_piquets):
-        row_bg = _WHITE if row_i % 2 == 0 else _SURFACE_2
+    # Fond des lignes piquets : alternance sur garde_rows puis ast_rows (sans la ligne sep)
+    alt_i = 0
+    for row_i in range(1, 1 + n_garde_rows + n_ast_rows + (1 if has_sep else 0)):
+        if has_sep and row_i == idx_sep:
+            continue  # la ligne sep a son propre fond
+        row_bg = _WHITE if alt_i % 2 == 0 else _SURFACE_2
         style.append(("BACKGROUND", (1, row_i), (-1, row_i), row_bg))
-        # Colonne label reste lavande (déjà défini globalement)
+        alt_i += 1
 
     table = Table(table_data, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle(style))

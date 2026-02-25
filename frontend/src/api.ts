@@ -298,6 +298,11 @@ export async function generateMonth(year: number, month: number){
   return r.data;
 }
 
+export async function generateYear(year: number) {
+  const r = await api.post('/gardes/generate_year', { year });
+  return r.data;
+}
+
 // Assigner une équipe à un jour/slot
 export async function assignTeam(payload: { date: string; slot: 'JOUR'|'NUIT'; equipe_id: number }) {
   const r = await api.put('/gardes/assign_team', payload);
@@ -389,8 +394,8 @@ export async function bulkOpeCheckForGarde(
 /* ============================
    SUGGESTIONS
 ============================ */
-export async function suggestPersonnels(garde_id: number, piquet_id: number): Promise<SuggestionMini[]>{
-  const r = await api.get(`/gardes/${garde_id}/suggest-personnels`, { params: { piquet_id } });
+export async function suggestPersonnels(garde_id: number, piquet_id: number, search?: string): Promise<SuggestionMini[]>{
+  const r = await api.get(`/gardes/${garde_id}/suggest-personnels`, { params: { piquet_id, ...(search ? { search } : {}) } });
   return r.data;
 }
 

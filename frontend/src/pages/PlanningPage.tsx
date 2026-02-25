@@ -62,6 +62,10 @@ export default function PlanningPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
+  const [zoom, setZoom] = useState<number>(() => {
+    const s = localStorage.getItem('pl-zoom')
+    return s ? parseFloat(s) : 1.0
+  })
 
   const { user, hasAnyRole } = useAuth()
   const isChef = !!user?.roles?.some(r => r === 'CHEF_EQUIPE' || r === 'ADJ_CHEF_EQUIPE')
@@ -150,6 +154,8 @@ export default function PlanningPage() {
   const [search, setSearch] = useState('')
   const [suggests, setSuggests] = useState<Personnel[]>([])
   const [loadingSuggests, setLoadingSuggests] = useState(false)
+  const [searchResults, setSearchResults] = useState<Personnel[]>([])
+  const [loadingSearch, setLoadingSearch] = useState(false)
 
   // ---- LOAD BASE ----
   useEffect(() => {
@@ -209,6 +215,7 @@ export default function PlanningPage() {
     setPanel({ garde: g, piquet: p })
     setSearch('')
     setSuggests([])
+    setSearchResults([])
     try {
       setLoadingSuggests(true)
       const res = await suggestPersonnels(g.id, p.id)
@@ -306,13 +313,24 @@ export default function PlanningPage() {
     }
   }
 
-  const filteredManual = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return []
-    return allPersonnels
-      .filter(p => (`${p.nom} ${p.prenom}`).toLowerCase().includes(q))
-      .slice(0, 20)
-  }, [search, allPersonnels])
+  useEffect(() => {
+    if (!search.trim() || !panel) {
+      setSearchResults([])
+      return
+    }
+    const timer = setTimeout(async () => {
+      setLoadingSearch(true)
+      try {
+        const res = await suggestPersonnels(panel.garde.id, panel.piquet.id, search.trim())
+        setSearchResults(res as any)
+      } catch {
+        setSearchResults([])
+      } finally {
+        setLoadingSearch(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, panel])
 
   const piquetCode = (p: Piquet) => p.code ?? p.nom
   const piquetLib = (p: Piquet) => p.libelle ?? p.description ?? ''
@@ -607,6 +625,23 @@ export default function PlanningPage() {
 
         <button className="pl-btn" onClick={loadMonth}>🔄 Recharger</button>
 
+        {/* Zoom */}
+        <div className="pl-zoom-group">
+          <button
+            className="pl-btn pl-zoom-btn"
+            title="Réduire"
+            disabled={zoom <= 0.5}
+            onClick={() => { const v = Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10); setZoom(v); localStorage.setItem('pl-zoom', String(v)) }}
+          >−</button>
+          <span className="pl-zoom-label">{Math.round(zoom * 100)}%</span>
+          <button
+            className="pl-btn pl-zoom-btn"
+            title="Agrandir"
+            disabled={zoom >= 1.5}
+            onClick={() => { const v = Math.min(1.5, Math.round((zoom + 0.1) * 10) / 10); setZoom(v); localStorage.setItem('pl-zoom', String(v)) }}
+          >+</button>
+        </div>
+
         {/* Validation / dévalidation */}
         <label
           className="pl-switch"
@@ -642,7 +677,7 @@ export default function PlanningPage() {
       </div>
 
       {/* Ruban horizontal du mois */}
-      <div className="pl-month-strip pl-fullbleed">
+      <div className="pl-month-strip pl-fullbleed" style={{ zoom }}>
         {gardesSorted.length === 0 && (
           <div className="pl-empty">Aucune garde pour ce mois/équipe.</div>
         )}
@@ -689,11 +724,17 @@ export default function PlanningPage() {
                 onChange={e => setSearch(e.target.value)}
               />
               <div className="pl-results">
-                {filteredManual.map(p => (
-                  <button key={p.id} className="pl-result" onClick={() => add(p.id)}>
-                    {personaShort(p)} {p.equipe_id ? <span className="pl-chip">EQ {p.equipe_id}</span> : null}
-                  </button>
-                ))}
+                {loadingSearch ? (
+                  <div className="pl-muted">Chargement…</div>
+                ) : searchResults.length === 0 && search.trim() ? (
+                  <div className="pl-muted">Aucun résultat</div>
+                ) : (
+                  searchResults.map((p: any) => (
+                    <button key={p.id} className="pl-result" onClick={() => add(p.id)}>
+                      {formatShortName(p.nom, p.prenom)} {p.equipe_id ? <span className="pl-chip">EQ {p.equipe_id}</span> : null}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>
