@@ -440,6 +440,28 @@ export async function savePersonnel(payload: Partial<Personnel> & { id?: number 
 }
 
 
+/* ============================
+   INDISPONIBILITES
+============================ */
+export type Indisponibilite = { id: number; garde_id: number; personnel_id: number };
+
+export async function listIndisponibilites(garde_id?: number, personnel_id?: number): Promise<Indisponibilite[]> {
+  const params: Record<string, number> = {}
+  if (garde_id !== undefined) params.garde_id = garde_id
+  if (personnel_id !== undefined) params.personnel_id = personnel_id
+  const r = await api.get('/indisponibilites', { params });
+  return r.data as Indisponibilite[];
+}
+
+export async function createIndisponibilite(garde_id: number, personnel_id: number): Promise<Indisponibilite> {
+  const r = await api.post('/indisponibilites', { garde_id, personnel_id });
+  return r.data as Indisponibilite;
+}
+
+export async function deleteIndisponibilite(id: number): Promise<void> {
+  await api.delete(`/indisponibilites/${id}`);
+}
+
 // ============================
 // SETTINGS (admin)
 // ============================

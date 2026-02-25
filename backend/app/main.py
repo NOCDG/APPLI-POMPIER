@@ -14,6 +14,7 @@ from app.api.routes import (
     piquets,
     gardes,
     affectations,
+    indisponibilites,
     roles,
     password_reset,
 )
@@ -48,6 +49,7 @@ app.include_router(equipes.router)
 app.include_router(piquets.router)
 app.include_router(gardes.router)
 app.include_router(affectations.router)
+app.include_router(indisponibilites.router)
 app.include_router(auth.router)
 app.include_router(users_me.router)
 app.include_router(roles.router)

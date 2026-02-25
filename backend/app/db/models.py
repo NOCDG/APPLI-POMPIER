@@ -227,6 +227,23 @@ try:
 except Exception:
     from sqlalchemy import JSON as SAJSON
 
+class Indisponibilite(Base):
+    __tablename__ = "indisponibilites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    garde_id: Mapped[int] = mapped_column(
+        ForeignKey("gardes.id", ondelete="CASCADE"), index=True
+    )
+    personnel_id: Mapped[int] = mapped_column(
+        ForeignKey("personnels.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("garde_id", "personnel_id", name="uq_indi_garde_pers"),
+    )
+
+
 class AppConfig(Base):
     __tablename__ = "app_config"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
