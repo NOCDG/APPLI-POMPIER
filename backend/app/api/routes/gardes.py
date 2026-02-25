@@ -1,4 +1,4 @@
-from datetime import date as date_type, datetime
+from datetime import date as date_type, datetime, timedelta
 import calendar
 from typing import List, Iterable
 
@@ -40,6 +40,58 @@ def _is_weekend(d: date_type) -> bool:
 
 def _is_holiday(db: Session, d: date_type) -> bool:
     return db.scalar(select(Holiday).where(Holiday.date == d)) is not None
+
+
+def _easter(year: int) -> date_type:
+    """Algorithme Meeus/Jones/Butcher — calcule le dimanche de Pâques."""
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = (h + l - 7 * m + 114) % 31 + 1
+    return date_type(year, month, day)
+
+
+_JF_LABELS = {
+    (1,  1): "Jour de l'An",
+    (5,  1): "Fête du Travail",
+    (5,  8): "Victoire 1945",
+    (7, 14): "Fête Nationale",
+    (8, 15): "Assomption",
+    (11, 1): "Toussaint",
+    (11,11): "Armistice",
+    (12,25): "Noël",
+}
+
+def _french_holidays(year: int) -> dict[date_type, str]:
+    """Retourne {date: label} pour tous les jours fériés français de l'année."""
+    easter = _easter(year)
+    result: dict[date_type, str] = {}
+    # Fêtes fixes
+    for (m, d), label in _JF_LABELS.items():
+        result[date_type(year, m, d)] = label
+    # Fêtes mobiles (basées sur Pâques)
+    result[easter]                        = "Dimanche de Pâques"
+    result[easter + timedelta(days=1)]    = "Lundi de Pâques"
+    result[easter + timedelta(days=39)]   = "Ascension"
+    result[easter + timedelta(days=49)]   = "Dimanche de Pentecôte"
+    result[easter + timedelta(days=50)]   = "Lundi de Pentecôte"
+    return result
+
+
+def _seed_french_holidays(db: Session, year: int) -> None:
+    """Insère les jours fériés français pour l'année dans la table Holiday (idempotent)."""
+    holidays = _french_holidays(year)
+    for d, label in holidays.items():
+        if not db.scalar(select(Holiday).where(Holiday.date == d)):
+            db.add(Holiday(date=d, label=label))
+    db.flush()
 
 
 # ---------- GET /gardes (liste par année/mois (+ filtre équipe optionnel)) ----------
@@ -226,6 +278,9 @@ def generate_month_all(payload: GenerateMonthAllRequest, db: Session = Depends(g
     - Week-end / JF : JOUR + NUIT
     """
     year, month = payload.year, payload.month
+    # Semer les jours fériés français pour l'année (idempotent)
+    _seed_french_holidays(db, year)
+
     first = date_type(year, month, 1)
     last = date_type(year, month, calendar.monthrange(year, month)[1])
 
@@ -250,6 +305,46 @@ def generate_month_all(payload: GenerateMonthAllRequest, db: Session = Depends(g
     return {"created": total_created, "year": year, "month": month}
 
 
+# ---------- POST /gardes/generate_year (TOUTE L'ANNÉE SANS ÉQUIPE) ----------
+class GenerateYearRequest(BaseModel):
+    year: int
+
+@router.post("/generate_year")
+@router.post("/generate_year/")
+def generate_year(payload: GenerateYearRequest, db: Session = Depends(get_session)):
+    """
+    Crée toutes les gardes de l'année SANS équipe :
+    - Semaine : NUIT
+    - Week-end / JF : JOUR + NUIT
+    Ignore les gardes déjà existantes (idempotent).
+    """
+    year = payload.year
+    # Semer les jours fériés français pour l'année entière (idempotent)
+    _seed_french_holidays(db, year)
+    total_created = 0
+
+    for month in range(1, 13):
+        first = date_type(year, month, 1)
+        last = date_type(year, month, calendar.monthrange(year, month)[1])
+        d = first
+        while d <= last:
+            is_we = _is_weekend(d)
+            is_hol = _is_holiday(db, d)
+            slots = (Slot.JOUR, Slot.NUIT) if (is_we or is_hol) else (Slot.NUIT,)
+            for slot in slots:
+                if not db.scalar(select(Garde).where(Garde.date == d, Garde.slot == slot)):
+                    db.add(Garde(date=d, slot=slot, is_weekend=is_we, is_holiday=is_hol, equipe_id=None))
+                    total_created += 1
+            d = date_type.fromordinal(d.toordinal() + 1)
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(400, "Contrainte (date,slot) en base – doublon détecté.")
+    return {"created": total_created, "year": year}
+
+
 # ---------- GET /gardes/{id}/suggest-personnels (équipe de la garde + compétences du piquet) ----------
 class PersonnelMini(BaseModel):
     id: int
@@ -265,6 +360,7 @@ class PersonnelMini(BaseModel):
 def suggest_personnels(
     garde_id: int,
     piquet_id: int = Query(..., description="ID du piquet"),
+    search: str | None = Query(None, description="Filtre nom/prénom"),
     db: Session = Depends(get_session),
 ):
     # 1) Garde (équipe + date)
@@ -279,8 +375,11 @@ def suggest_personnels(
         select(PiquetCompetence.competence_id).where(PiquetCompetence.piquet_id == piquet_id)
     ).all()
 
-    # 3) Base: personnels de la même équipe
-    base = select(Personnel).where(Personnel.equipe_id == garde.equipe_id)
+    # 3) Base: personnels de la même équipe, actifs
+    base = select(Personnel).where(
+        Personnel.equipe_id == garde.equipe_id,
+        Personnel.is_active.is_(True),
+    )
 
     # 4) Exclure ceux déjà affectés sur cette garde
     base = base.where(
@@ -308,6 +407,16 @@ def suggest_personnels(
             .subquery()
         )
         base = base.join(sub, sub.c.personnel_id == Personnel.id).where(sub.c.cnt == len(req_ids))
+
+    # 6) Filtre texte (nom ou prénom)
+    if search and search.strip():
+        q = f"%{search.strip().lower()}%"
+        base = base.where(
+            or_(
+                func.lower(Personnel.nom).like(q),
+                func.lower(Personnel.prenom).like(q),
+            )
+        )
 
     base = base.order_by(Personnel.nom, Personnel.prenom)
     rows = db.scalars(base).all()
@@ -421,18 +530,20 @@ def valider_mois(
     try:
         from app.services.pdf_generator import generate_feuille_garde_pdf
 
+        def _pdf_name(p) -> str:
+            nom    = (p.nom    or "").strip()
+            prenom = (p.prenom or "").strip()
+            return f"{nom} {prenom[0]}." if prenom else nom
+
         # Noms des agents ayant des affectations
-        pers_name_map = {
-            p.id: f"{p.prenom or ''} {p.nom or ''}".strip()
-            for p in personnels
-        }
+        pers_name_map = {p.id: _pdf_name(p) for p in personnels}
 
         # Tous les piquets (triés par position puis code), même ceux non utilisés
         pq_rows = db.scalars(
             select(Piquet).order_by(Piquet.position, Piquet.code)
         ).all()
         pdf_piquets: list[dict] = [
-            {"id": p.id, "label": p.libelle or p.code or f"P{p.id}"}
+            {"id": p.id, "label": p.libelle or p.code or f"P{p.id}", "is_astreinte": bool(p.is_astreinte)}
             for p in pq_rows
         ]
 
@@ -452,7 +563,7 @@ def valider_mois(
         ).all()
         team_ids = {p.id for p in team_members}
         team_names = {
-            p.id: f"{p.prenom or ''} {p.nom or ''}".strip()
+            p.id: _pdf_name(p)
             for p in team_members
         }
 
@@ -537,7 +648,7 @@ def valider_mois(
 
         fullname = f"{p.prenom} {p.nom}".strip()
         # Tronquer le 4e élément (statut_service) — le template attend (date, slot, piquet)
-        gardes_rows = sorted([(r[0], r[1], r[2]) for r in mail_rows], key=lambda r: r[0])
+        gardes_rows = sorted([(r[0], r[1], r[2]) for r in mail_rows], key=lambda r: (r[0], 0 if r[1].upper() == "JOUR" else 1))
 
         is_team = p.equipe_id == equipe_id
         if is_team:

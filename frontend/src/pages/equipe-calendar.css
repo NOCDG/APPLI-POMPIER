@@ -31,6 +31,62 @@
   transition: background var(--transition);
 }
 .ec-btn:hover { background: var(--raised); }
+.ec-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ec-btn-primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.ec-btn-primary:hover { filter: brightness(1.1); background: var(--accent); }
+
+.ec-btn-year {
+  background: var(--btn-blue);
+  color: #e9eeff;
+  border-color: transparent;
+}
+.ec-btn-year:hover { filter: brightness(1.15); background: var(--btn-blue); }
+
+/* ---- Modal génération année ---- */
+.ec-modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 300;
+}
+.ec-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  width: 340px;
+  max-width: 94vw;
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.ec-modal-head { display: flex; align-items: center; justify-content: space-between; }
+.ec-modal-title { font-weight: 800; font-size: 1rem; color: var(--text); }
+.ec-modal-close {
+  border: none; background: transparent; font-size: 16px;
+  color: var(--text-muted); cursor: pointer; line-height: 1;
+}
+.ec-modal-close:hover { color: var(--text); }
+.ec-modal-desc { font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+.ec-modal-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.ec-modal-input {
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 15px;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color var(--transition);
+}
+.ec-modal-input:focus { border-color: var(--accent); }
+.ec-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
 
 .ec-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 @media (max-width: 900px) { .ec-grid { grid-template-columns: 1fr; } }
