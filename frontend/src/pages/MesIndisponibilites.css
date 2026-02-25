@@ -90,6 +90,21 @@
   border-color: var(--danger);
 }
 
+.mi-card.locked {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+.mi-card.locked:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border);
+}
+
+.mi-chip.locked {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
 .mi-card.indispo {
   border-color: var(--danger);
   background: rgba(220, 53, 69, 0.08);
