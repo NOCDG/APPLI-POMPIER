@@ -36,6 +36,10 @@ export default function SaisieGardesPage() {
   const [personnels, setPersonnels] = useState<Personnel[]>([]);
   const [loading, setLoading] = useState(true);
   const [equipeFilter, setEquipeFilter] = useState<number | ''>('');
+  const [zoom, setZoom] = useState<number>(() => {
+    const s = localStorage.getItem('sg-zoom');
+    return s ? parseFloat(s) : 1.0;
+  });
 
   // UI pending (évite double clic pendant requêtes)
   const [pendingAffIds, setPendingAffIds] = useState<Record<number, boolean>>({});
@@ -304,7 +308,7 @@ export default function SaisieGardesPage() {
     };
 
     return (
-      <div className="sg-slot-block">
+      <div className={`sg-slot-block sg-slot-block--${label.toLowerCase()}`}>
         <div className="sg-slot-head">
           <span className="sg-slot">{label}</span>
           {garde ? (
@@ -392,6 +396,19 @@ export default function SaisieGardesPage() {
         <button className="sg-btn" onClick={loadMonth}>
           🔄 Recharger
         </button>
+        <div className="sg-zoom-group">
+          <button
+            className="sg-btn sg-zoom-btn"
+            disabled={zoom <= 0.5}
+            onClick={() => { const v = Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10); setZoom(v); localStorage.setItem('sg-zoom', String(v)); }}
+          >−</button>
+          <span className="sg-zoom-label">{Math.round(zoom * 100)}%</span>
+          <button
+            className="sg-btn sg-zoom-btn"
+            disabled={zoom >= 1.5}
+            onClick={() => { const v = Math.min(1.5, Math.round((zoom + 0.1) * 10) / 10); setZoom(v); localStorage.setItem('sg-zoom', String(v)); }}
+          >+</button>
+        </div>
       </div>
 
       {loading && <div className="sg-muted">Chargement…</div>}
@@ -403,11 +420,20 @@ export default function SaisieGardesPage() {
           ) : (
             <div className="sg-grid">
               {gardesByDate.map(([iso, pair]) => (
-                <div className="sg-day" key={iso}>
-                  <div className="sg-day-head">{formatDate(iso)}</div>
-                  {pair.jour && renderSlotBlock("JOUR", pair.jour)}
-                  {pair.nuit && renderSlotBlock("NUIT", pair.nuit)}
-                </div>
+                <React.Fragment key={iso}>
+                  {pair.jour && (
+                    <div className="sg-day sg-day--jour" style={{ zoom }}>
+                      <div className="sg-day-head">{formatDate(iso)}</div>
+                      {renderSlotBlock("JOUR", pair.jour)}
+                    </div>
+                  )}
+                  {pair.nuit && (
+                    <div className="sg-day sg-day--nuit" style={{ zoom }}>
+                      <div className="sg-day-head">{formatDate(iso)}</div>
+                      {renderSlotBlock("NUIT", pair.nuit)}
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           )}

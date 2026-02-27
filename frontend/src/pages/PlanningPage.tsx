@@ -494,7 +494,7 @@ export default function PlanningPage() {
     const unassigned = (unassignedByGarde[g.id] ?? [])
 
     return (
-      <div key={g.id} className="pl-day">
+      <div key={g.id} className="pl-day" style={{ zoom }}>
         <div className="pl-day-head">
           <div className="pl-date">{formatDate(g.date)} — <b>{g.slot}</b></div>
           {badge && <span className="pl-chip">{badge}</span>}
@@ -677,7 +677,7 @@ export default function PlanningPage() {
       </div>
 
       {/* Ruban horizontal du mois */}
-      <div className="pl-month-strip pl-fullbleed" style={{ zoom }}>
+      <div className="pl-month-strip pl-fullbleed">
         {gardesSorted.length === 0 && (
           <div className="pl-empty">Aucune garde pour ce mois/équipe.</div>
         )}
