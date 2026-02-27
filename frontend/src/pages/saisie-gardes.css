@@ -2,7 +2,7 @@
    SAISIE GARDES PAGE
 ============================ */
 
-.sg-container { max-width: 1200px; margin: 0 auto; }
+.sg-container { width: 100%; }
 .sg-title { margin: 0 0 4px; font-size: 1.5rem; font-weight: 800; color: var(--text); letter-spacing: -0.3px; }
 
 /* ===== Toolbar ===== */
@@ -43,15 +43,38 @@
   transition: background var(--transition);
 }
 .sg-btn:hover { background: var(--raised); }
+.sg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.sg-zoom-group {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.sg-zoom-btn {
+  border: none;
+  border-radius: 0;
+  padding: 8px 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.sg-zoom-label {
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  min-width: 36px;
+  text-align: center;
+}
 
 /* ===== Grille ===== */
 .sg-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 14px;
+  align-items: flex-start;
 }
-@media (max-width: 1300px) { .sg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 900px)   { .sg-grid { grid-template-columns: 1fr; } }
 
 .sg-empty {
   color: var(--text-muted);
@@ -66,6 +89,8 @@
 
 /* ===== Carte jour ===== */
 .sg-day {
+  width: 340px;
+  flex: 0 0 auto;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
@@ -73,7 +98,6 @@
   box-shadow: var(--shadow-sm);
   transition:
     box-shadow var(--transition),
-    transform var(--transition),
     border-color var(--transition);
 }
 .sg-day:hover {
@@ -97,13 +121,10 @@
 /* ===== Blocs JOUR / NUIT ===== */
 .sg-slot-block {
   padding: 12px 14px;
-  border-top: 1px solid var(--border-dim);
 }
-.sg-slot-block:first-of-type { border-top: none; }
 
-/* Alternance JOUR / NUIT */
-.sg-day .sg-slot-block:nth-of-type(odd)  { background: var(--card-night-bg); }
-.sg-day .sg-slot-block:nth-of-type(even) { background: var(--card-day-bg); }
+.sg-slot-block--jour { background: var(--card-day-bg); }
+.sg-slot-block--nuit { background: var(--card-night-bg); }
 
 /* Header JOUR / NUIT */
 .sg-slot-head {
@@ -168,7 +189,7 @@
   color: var(--card-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin: 10px 0 6px;
+  margin: 4px 0 2px;
 }
 
 .sg-eq-table { display: flex; flex-direction: column; gap: 8px; }

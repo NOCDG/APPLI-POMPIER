@@ -75,7 +75,7 @@ export default function Nav() {
           {can("ADMIN", "OFFICIER", "OPE", "AGENT") &&
             navLink("/vision-gardes", "Gardes")}
 
-          {navLink("/mes-indisponibilites", "Indisponibilités")}
+          {/* {navLink("/mes-indisponibilites", "Indisponibilités")} */}
 
           {can("ADMIN") &&
             navLink("/admin/settings", "⚙ Paramètres")}

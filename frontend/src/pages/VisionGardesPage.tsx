@@ -13,6 +13,10 @@ export default function VisionGardesPage() {
 
   // ✅ filtre équipe (mémoire)
   const [equipeId, setEquipeId] = useState<number | ''>('')
+  const [zoom, setZoom] = useState<number>(() => {
+    const s = localStorage.getItem('vg-zoom')
+    return s ? parseFloat(s) : 1.0
+  })
 
   const [equipes, setEquipes] = useState<Equipe[]>([])
   const [piquets, setPiquets] = useState<Piquet[]>([])
@@ -75,6 +79,21 @@ export default function VisionGardesPage() {
     return arr
   }, [filteredGardes])
 
+  const equipeColorMap = useMemo(() => {
+    const m: Record<number, string> = {}
+    equipes.forEach(eq => {
+      const c = (eq as any).couleur ?? (eq as any).color
+      if (typeof c === 'string' && c.trim()) m[eq.id] = c.trim()
+    })
+    return m
+  }, [equipes])
+
+  const isAstreinte = (p: Piquet) => {
+    if ((p as any).is_astreinte === true) return true
+    const s = `${p.code || ''} ${p.libelle || ''}`.trim().toLowerCase()
+    return s.startsWith('astreinte')
+  }
+
   const formatDate = (iso: string) => {
     const d = new Date(iso + 'T00:00:00')
     return d.toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' })
@@ -86,7 +105,7 @@ export default function VisionGardesPage() {
     (affByGarde[gardeId] || []).find(a => a.piquet_id === piquetId)
 
   return (
-    <div className="pl-container">
+    <div className="vg-page pl-container">
       <h2 className="pl-title">🗓️ PIQUETS </h2>
 
       {/* Barre de sélection */}
@@ -122,6 +141,19 @@ export default function VisionGardesPage() {
         <button className="pl-btn" onClick={loadMonth} disabled={loading}>
           🔄 Recharger
         </button>
+        <div className="pl-zoom-group">
+          <button
+            className="pl-btn pl-zoom-btn"
+            disabled={zoom <= 0.5}
+            onClick={() => { const v = Math.max(0.5, Math.round((zoom - 0.1) * 10) / 10); setZoom(v); localStorage.setItem('vg-zoom', String(v)) }}
+          >−</button>
+          <span className="pl-zoom-label">{Math.round(zoom * 100)}%</span>
+          <button
+            className="pl-btn pl-zoom-btn"
+            disabled={zoom >= 1.5}
+            onClick={() => { const v = Math.min(1.5, Math.round((zoom + 0.1) * 10) / 10); setZoom(v); localStorage.setItem('vg-zoom', String(v)) }}
+          >+</button>
+        </div>
       </div>
 
       {loading && <div className="pl-muted">Chargement…</div>}
@@ -145,8 +177,34 @@ export default function VisionGardesPage() {
                 ? new Date((g as any).validated_at).toLocaleString()
                 : null
 
+              const gardePiquets = piquets.filter(p => !isAstreinte(p))
+              const astreintePiquets = piquets.filter(p => isAstreinte(p))
+
+              const renderRow = (p: Piquet) => {
+                const aff = affFor(g.id, p.id)
+                const person = aff ? allPersonnels.find(x => x.id === aff.personnel_id) : undefined
+                const isPro = aff?.statut_service === 'pro' || (person?.statut || '').toLowerCase() === 'pro'
+                const eqColor = person?.equipe_id ? equipeColorMap[person.equipe_id] : undefined
+                const pillStyle = aff ? {
+                  backgroundColor: isPro ? 'violet' : (eqColor ?? '#444'),
+                  color: 'black',
+                } : {}
+                return (
+                  <div key={p.id} className="pl-row">
+                    <div className="pl-piquet" title={piquetLib(p)}>{(piquetCode(p) ?? '').replace(/^astreinte\s*/i, '')}</div>
+                    <div className="pl-assignee">
+                      {person ? (
+                        <span className="pl-pill" style={pillStyle}>{persona(person)}</span>
+                      ) : (
+                        <span className="pl-empty-small">—</span>
+                      )}
+                    </div>
+                  </div>
+                )
+              }
+
               return (
-                <div key={g.id} className="pl-day">
+                <div key={g.id} className="pl-day" style={{ zoom }}>
                   <div className="pl-day-head">
                     <div className="pl-date">{formatDate(g.date)} — <b>{g.slot}</b></div>
                     {badge && <span className="pl-chip">{badge}</span>}
@@ -159,31 +217,24 @@ export default function VisionGardesPage() {
                     )}
                   </div>
 
-                  <div className={`pl-garde ${g.slot === 'JOUR' ? 'day' : 'night'}`}>
-                    <div className="pl-garde-head">
-                      <b>{g.slot}</b>
-                    </div>
+                  <div className={`vg-garde ${g.slot === 'JOUR' ? 'day' : 'night'}`}>
+                    <div className="vg-garde-head"><b>{g.slot}</b></div>
 
-                    <div className="pl-rows">
-                      {piquets.map(p => {
-                        const aff = affFor(g.id, p.id)
-                        const person = aff
-                          ? allPersonnels.find(x => x.id === aff.personnel_id)
-                          : undefined
-                        return (
-                          <div key={p.id} className="pl-row">
-                            <div className="pl-piquet" title={piquetLib(p)}>{piquetCode(p)}</div>
-                            <div className="pl-assignee">
-                              {validated && person ? (
-                                <span className="pl-pill">{persona(person)}</span>
-                              ) : (
-                                <span className="pl-empty-small">—</span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
+                    {gardePiquets.length > 0 && (
+                      <div className="vg-section">
+                        <div className="vg-section-title">🚒 Gardes</div>
+                        <div className="pl-rows">{gardePiquets.map(renderRow)}</div>
+                      </div>
+                    )}
+                    {gardePiquets.length > 0 && astreintePiquets.length > 0 && (
+                      <div className="vg-divider" />
+                    )}
+                    {astreintePiquets.length > 0 && (
+                      <div className="vg-section">
+                        <div className="vg-section-title">🏠 Astreinte</div>
+                        <div className="pl-rows">{astreintePiquets.map(renderRow)}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )

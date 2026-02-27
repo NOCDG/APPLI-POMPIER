@@ -336,20 +336,20 @@ main {
 }
 
 /* Sections */
-.pl-section { margin-top: 8px; }
+.pl-section { margin-top: 4px; }
 .pl-section-title {
   font-weight: 800;
   letter-spacing: 0.06em;
   font-size: 0.8rem;
   opacity: 0.85;
-  padding: 6px 0;
+  padding: 2px 0;
   border-bottom: 1px solid var(--border-dim);
-  margin-bottom: 6px;
+  margin-bottom: 3px;
   color: var(--text-subtle);
   text-transform: uppercase;
 }
 
-.pl-divider { height: 1px; background: var(--border-dim); margin: 10px 0; }
+.pl-divider { height: 1px; background: var(--border-dim); margin: 5px 0; }
 
 /* Ruban mensuel */
 .month-block { margin-bottom: 16px; }
