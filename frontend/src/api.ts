@@ -394,8 +394,8 @@ export async function bulkOpeCheckForGarde(
 /* ============================
    SUGGESTIONS
 ============================ */
-export async function suggestPersonnels(garde_id: number, piquet_id: number, search?: string): Promise<SuggestionMini[]>{
-  const r = await api.get(`/gardes/${garde_id}/suggest-personnels`, { params: { piquet_id, ...(search ? { search } : {}) } });
+export async function suggestPersonnels(garde_id: number, piquet_id: number, search?: string, equipe_only = true): Promise<SuggestionMini[]>{
+  const r = await api.get(`/gardes/${garde_id}/suggest-personnels`, { params: { piquet_id, equipe_only, ...(search ? { search } : {}) } });
   return r.data;
 }
 

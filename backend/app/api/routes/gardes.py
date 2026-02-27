@@ -26,6 +26,7 @@ from app.db.models import (
     Affectation, Personnel as PersonnelModel, PersonnelRole, RoleEnum,
     Indisponibilite,
 )
+from app.services.planning import would_make_three_in_a_row
 from app.schemas.garde import (
     GardeRead, GenerateMonthRequest, GardeCreate,
     AssignTeamRequest, GenerateMonthAllRequest,
@@ -361,25 +362,32 @@ def suggest_personnels(
     garde_id: int,
     piquet_id: int = Query(..., description="ID du piquet"),
     search: str | None = Query(None, description="Filtre nom/prénom"),
+    equipe_only: bool = Query(True, description="Limiter à l'équipe de la garde"),
     db: Session = Depends(get_session),
 ):
-    # 1) Garde (équipe + date)
+    # 1) Garde (date + équipe)
     garde = db.get(Garde, garde_id)
     if not garde:
         raise HTTPException(status_code=404, detail="Garde introuvable")
-    if garde.equipe_id is None:
-        raise HTTPException(status_code=400, detail="Cette garde n'est pas rattachée à une équipe")
 
-    # 2) Exigences du piquet
+    # 2) Piquet + exigences de compétences
+    piquet = db.get(Piquet, piquet_id)
+    if not piquet:
+        raise HTTPException(status_code=404, detail="Piquet introuvable")
     req_ids = db.scalars(
         select(PiquetCompetence.competence_id).where(PiquetCompetence.piquet_id == piquet_id)
     ).all()
 
-    # 3) Base: personnels de la même équipe, actifs
-    base = select(Personnel).where(
-        Personnel.equipe_id == garde.equipe_id,
-        Personnel.is_active.is_(True),
-    )
+    # 3) Base: personnels actifs — équipe de la garde si equipe_only, sinon toutes équipes
+    if equipe_only and garde.equipe_id is not None:
+        base = select(Personnel).where(
+            Personnel.equipe_id == garde.equipe_id,
+            Personnel.is_active.is_(True),
+        )
+    else:
+        base = select(Personnel).where(
+            Personnel.is_active.is_(True),
+        )
 
     # 4) Exclure ceux déjà affectés sur cette garde
     base = base.where(
@@ -420,6 +428,10 @@ def suggest_personnels(
 
     base = base.order_by(Personnel.nom, Personnel.prenom)
     rows = db.scalars(base).all()
+
+    # 7) Exclure ceux dont l'ajout ferait un enchainement ≥ 3 gardes consécutives (2×24h d'affilée)
+    rows = [r for r in rows if not would_make_three_in_a_row(db, r.id, garde, piquet)]
+
     return [PersonnelMini.model_validate(r, from_attributes=True) for r in rows]
 
 
