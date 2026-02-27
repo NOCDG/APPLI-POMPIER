@@ -321,7 +321,7 @@ export default function PlanningPage() {
     const timer = setTimeout(async () => {
       setLoadingSearch(true)
       try {
-        const res = await suggestPersonnels(panel.garde.id, panel.piquet.id, search.trim())
+        const res = await suggestPersonnels(panel.garde.id, panel.piquet.id, search.trim(), false)
         setSearchResults(res as any)
       } catch {
         setSearchResults([])
