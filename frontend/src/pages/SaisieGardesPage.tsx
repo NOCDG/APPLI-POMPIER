@@ -249,8 +249,9 @@ export default function SaisieGardesPage() {
       for (const a of affByGarde[garde.id] || []) {
         const pers = personnels.find((x) => x.id === a.personnel_id);
         if (!pers) continue;
-        const row: Row = { aff: a, label: persona(pers.id), eqId: pers.equipe_id ?? 0 };
-        if (isProOnGarde(pers, a)) {
+        const isPro = isProOnGarde(pers, a);
+        const row: Row = { aff: a, label: persona(pers.id), eqId: isPro ? 0 : (pers.equipe_id ?? 0) };
+        if (isPro) {
           pro24Rows.push(row);
         } else if (isAstreinte(pqById.get(a.piquet_id))) {
           astreinteRows.push(row);
