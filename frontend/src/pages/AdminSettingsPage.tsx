@@ -82,7 +82,7 @@ export default function AdminSettingsPage() {
     setSaving(true);
     try {
       await saveAppSettings(settings);
-      const fresh = await getAppSettings();     // ← rechargement pour l’état source de vérité
+      const fresh = await getAppSettings();     // ← rechargement pour l’état source de vérité ceci est un test
       setSettings(normalizeSettings(fresh));
       alert("Paramètres enregistrés ✅");
     } catch (e:any) {
