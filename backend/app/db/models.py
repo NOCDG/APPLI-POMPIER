@@ -244,6 +244,21 @@ class Indisponibilite(Base):
     )
 
 
+class DispoAgatt(Base):
+    __tablename__ = "dispos_agatt"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    nom: Mapped[str] = mapped_column(String(100))       # normalisé (sans accents, majuscules)
+    prenom: Mapped[str] = mapped_column(String(100))    # normalisé
+    type_occ: Mapped[str] = mapped_column(String(5))    # DN, DJ, DAN, DAJ, G24
+    imported_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("date", "nom", "prenom", "type_occ", name="uq_dispo_agatt"),
+    )
+
+
 class AppConfig(Base):
     __tablename__ = "app_config"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)

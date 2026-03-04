@@ -4,7 +4,10 @@ import {
   listAffectations, createAffectation, deleteAffectation,
   suggestPersonnels, listPersonnels, validateMonth, unvalidateMonth,
   listIndisponibilites, createIndisponibilite, deleteIndisponibilite,
+  listDisposAgatt,
+  listProDeGarde,
   type Indisponibilite,
+  type DispoAgatt,
 } from '../api'
 import { useAuth } from '../auth/AuthContext'
 import './planning.css'
@@ -156,6 +159,10 @@ export default function PlanningPage() {
   const [loadingSuggests, setLoadingSuggests] = useState(false)
   const [searchResults, setSearchResults] = useState<Personnel[]>([])
   const [loadingSearch, setLoadingSearch] = useState(false)
+  const [disposAgatt, setDisposAgatt] = useState<DispoAgatt[]>([])
+  const [loadingDispos, setLoadingDispos] = useState(false)
+  const [proDeGarde, setProDeGarde] = useState<DispoAgatt[]>([])
+  const [loadingPro, setLoadingPro] = useState(false)
 
   // ---- LOAD BASE ----
   useEffect(() => {
@@ -216,12 +223,27 @@ export default function PlanningPage() {
     setSearch('')
     setSuggests([])
     setSearchResults([])
+    setDisposAgatt([])
+    setProDeGarde([])
+
+    const isAstreinte = (p as any).is_astreinte === true
+
+    setLoadingSuggests(true)
+    setLoadingDispos(true)
+    setLoadingPro(true)
     try {
-      setLoadingSuggests(true)
-      const res = await suggestPersonnels(g.id, p.id)
-      setSuggests(res as any)
+      const [sugRes, disposRes, proRes] = await Promise.all([
+        suggestPersonnels(g.id, p.id),
+        listDisposAgatt(g.date, g.slot, isAstreinte, p.id),
+        listProDeGarde(g.date),
+      ])
+      setSuggests(sugRes as any)
+      setDisposAgatt(disposRes)
+      setProDeGarde(proRes)
     } finally {
       setLoadingSuggests(false)
+      setLoadingDispos(false)
+      setLoadingPro(false)
     }
   }
 
@@ -699,6 +721,24 @@ export default function PlanningPage() {
             </div>
 
             <div className="pl-panel-block">
+              <div className="pl-subtitle">👨‍🚒 Pro de garde</div>
+              {loadingPro ? (
+                <div className="pl-muted">Chargement…</div>
+              ) : proDeGarde.length === 0 ? (
+                <div className="pl-muted">Aucun pro de garde pour cette date</div>
+              ) : (
+                <div className="pl-suggests">
+                  {proDeGarde.map(d => (
+                    <button key={d.id} className="pl-suggest pl-suggest-pro" onClick={() => add(d.id)}>
+                      {formatShortName(d.nom, d.prenom)}
+                      {d.equipe_id ? <span className="pl-chip">EQ {d.equipe_id}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pl-panel-block">
               <div className="pl-subtitle">⭐ Suggestions</div>
               {loadingSuggests ? (
                 <div className="pl-muted">Chargement…</div>
@@ -713,6 +753,24 @@ export default function PlanningPage() {
                   ))}
                 </div>
               ))}
+            </div>
+
+            <div className="pl-panel-block">
+              <div className="pl-subtitle">🟢 Dispo Agatt</div>
+              {loadingDispos ? (
+                <div className="pl-muted">Chargement…</div>
+              ) : disposAgatt.length === 0 ? (
+                <div className="pl-muted">Aucune dispo dans le fichier pour cette garde</div>
+              ) : (
+                <div className="pl-suggests">
+                  {disposAgatt.map(d => (
+                    <button key={d.id} className="pl-suggest pl-suggest-dispo" onClick={() => add(d.id)}>
+                      {formatShortName(d.nom, d.prenom)}
+                      {d.equipe_id ? <span className="pl-chip">EQ {d.equipe_id}</span> : null}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="pl-panel-block">

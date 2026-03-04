@@ -19,9 +19,14 @@ class Settings(BaseSettings):
     JWT_ACCESS_TTL_MIN: int = 30
 
     # --- CORS ---
-    # Nom du champ = CORS_ORIGINS (comme tu l'utilises déjà)
-    # L'env CORS_ORIGINS sera bien pris en compte automatiquement
     CORS_ORIGINS: str = "http://localhost:5173"
+
+    # --- Import CSV Gmail IMAP ---
+    GMAIL_IMAP_USER: Optional[str] = None
+    GMAIL_IMAP_PASSWORD: Optional[str] = None
+    GMAIL_CSV_SENDER: Optional[str] = None
+    GMAIL_CSV_SUBJECT: Optional[str] = None
+    GMAIL_FETCH_HOUR: int = 3
 
     model_config = SettingsConfigDict(
         env_file=".env",

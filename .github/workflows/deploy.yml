@@ -126,6 +126,12 @@ jobs:
       MAIL_PORT: ${{ secrets.MAIL_PORT }}
       MAIL_TLS: ${{ secrets.MAIL_TLS }}
       MAIL_SSL: ${{ secrets.MAIL_SSL }}
+      FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
+      GMAIL_IMAP_USER: ${{ secrets.GMAIL_IMAP_USER }}
+      GMAIL_IMAP_PASSWORD: ${{ secrets.GMAIL_IMAP_PASSWORD }}
+      GMAIL_CSV_SENDER: ${{ secrets.GMAIL_CSV_SENDER }}
+      GMAIL_CSV_SUBJECT: ${{ secrets.GMAIL_CSV_SUBJECT }}
+      GMAIL_FETCH_HOUR: ${{ secrets.GMAIL_FETCH_HOUR }}
 
     steps:
       - name: Download backend
@@ -185,6 +191,12 @@ jobs:
           MAIL_TLS=${MAIL_TLS}
           MAIL_SSL=${MAIL_SSL}
           TZ=${TZ}
+          FRONTEND_URL=${FRONTEND_URL}
+          GMAIL_IMAP_USER=${GMAIL_IMAP_USER}
+          GMAIL_IMAP_PASSWORD=${GMAIL_IMAP_PASSWORD}
+          GMAIL_CSV_SENDER=${GMAIL_CSV_SENDER}
+          GMAIL_CSV_SUBJECT=${GMAIL_CSV_SUBJECT}
+          GMAIL_FETCH_HOUR=${GMAIL_FETCH_HOUR}
           EOF
           ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "chmod 600 /opt/feuille-garde/app/backend/.env"
 
