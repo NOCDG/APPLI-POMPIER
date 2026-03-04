@@ -17,12 +17,15 @@ from app.api.routes import (
     indisponibilites,
     roles,
     password_reset,
+    dispos_agatt,
 )
 from app.db.seed_holidays_fr import seed as seed_holidays
 
 try:
     from apscheduler.schedulers.background import BackgroundScheduler
     from app.services.scheduler import send_monthly_reminder
+    from app.services.gmail_fetcher import fetch_csv_from_gmail
+    from app.core.config import settings as _s
     _scheduler = BackgroundScheduler(timezone="Europe/Paris")
     _scheduler.add_job(
         send_monthly_reminder,
@@ -31,6 +34,14 @@ try:
         hour=8,
         minute=0,
         id="monthly_reminder",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        fetch_csv_from_gmail,
+        "cron",
+        hour=_s.GMAIL_FETCH_HOUR,
+        minute=0,
+        id="gmail_csv_fetch",
         replace_existing=True,
     )
     _HAS_SCHEDULER = True
@@ -81,3 +92,4 @@ app.include_router(auth.router)
 app.include_router(users_me.router)
 app.include_router(roles.router)
 app.include_router(password_reset.router)
+app.include_router(dispos_agatt.router)

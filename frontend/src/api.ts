@@ -467,6 +467,38 @@ export async function deleteIndisponibilite(id: number): Promise<void> {
   await api.delete(`/indisponibilites/${id}`);
 }
 
+/* ============================
+   DISPOS AGATT (import CSV ST-LO)
+============================ */
+export type DispoAgatt = {
+  id: number;
+  nom: string;
+  prenom: string;
+  grade: string;
+  equipe_id?: number | null;
+  statut: string;
+};
+
+export async function listProDeGarde(date: string): Promise<DispoAgatt[]> {
+  const r = await api.get('/dispos-agatt/pro-garde', { params: { date } });
+  return r.data as DispoAgatt[];
+}
+
+export async function triggerGmailFetch(): Promise<{ status: string; detail: string }> {
+  const r = await api.post('/dispos-agatt/fetch-gmail');
+  return r.data;
+}
+
+export async function listDisposAgatt(
+  date: string,
+  slot: 'JOUR' | 'NUIT',
+  is_astreinte: boolean,
+  piquet_id?: number
+): Promise<DispoAgatt[]> {
+  const r = await api.get('/dispos-agatt', { params: { date, slot, is_astreinte, piquet_id } });
+  return r.data as DispoAgatt[];
+}
+
 // ============================
 // SETTINGS (admin)
 // ============================

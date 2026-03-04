@@ -3,7 +3,7 @@ import { useAuth } from "../auth/AuthContext";
 import { RoleGuard } from "../auth/guards";
 import HtmlEditor from "../components/HtmlEditor";
 import {
-  getAppSettings, saveAppSettings, testEmail,
+  getAppSettings, saveAppSettings, testEmail, triggerGmailFetch,
   type AppSettings, type MailTemplates
 } from "../api";
 import "./admin-settings.css";
@@ -43,6 +43,8 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testTo, setTestTo] = useState("");
+  const [fetchingCsv, setFetchingCsv] = useState(false);
+  const [fetchCsvMsg, setFetchCsvMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -100,6 +102,19 @@ export default function AdminSettingsPage() {
       alert("Mail de test envoyé ✅");
     } catch (e: any) {
       alert(e?.message || "Erreur lors de l’envoi du mail de test");
+    }
+  }
+
+  async function onFetchCsv() {
+    setFetchingCsv(true);
+    setFetchCsvMsg(null);
+    try {
+      const res = await triggerGmailFetch();
+      setFetchCsvMsg({ ok: true, text: res.detail });
+    } catch (e: any) {
+      setFetchCsvMsg({ ok: false, text: e?.response?.data?.detail || e?.message || "Erreur inconnue" });
+    } finally {
+      setFetchingCsv(false);
     }
   }
 
@@ -252,6 +267,25 @@ export default function AdminSettingsPage() {
                   value={settings.mail_templates.user_validation_html}
                   onChange={e=>updateTpl({user_validation_html:e.target.value})}/>
               </label>
+            </div>
+          </fieldset>
+
+          {/* Import CSV Gmail */}
+          <fieldset className="as-card">
+            <legend>📥 Import CSV Agatt (Gmail)</legend>
+            <p style={{ color: "var(--text-muted)", marginTop: 0, marginBottom: 14, fontSize: 13 }}>
+              Récupération automatique chaque jour à <b>03h00</b> depuis <b>d.bisbos@sdis50.fr</b>.<br/>
+              Le bouton ci-dessous force une récupération immédiate.
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <button className="as-btn" onClick={onFetchCsv} disabled={fetchingCsv}>
+                {fetchingCsv ? "Récupération…" : "🔄 Récupérer maintenant"}
+              </button>
+              {fetchCsvMsg && (
+                <span style={{ color: fetchCsvMsg.ok ? "var(--ok)" : "var(--danger)", fontSize: 13 }}>
+                  {fetchCsvMsg.ok ? "✅" : "❌"} {fetchCsvMsg.text}
+                </span>
+              )}
             </div>
           </fieldset>
 

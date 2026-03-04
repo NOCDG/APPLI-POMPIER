@@ -307,6 +307,19 @@ main {
 }
 .pl-suggest:hover, .pl-result:hover { background: var(--raised); }
 
+.pl-suggest-pro {
+  border-color: #a855f7;
+  background: color-mix(in srgb, #a855f7 12%, var(--surface-3));
+  font-weight: 700;
+}
+.pl-suggest-pro:hover { background: color-mix(in srgb, #a855f7 22%, var(--surface-3)); }
+
+.pl-suggest-dispo {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface-3));
+}
+.pl-suggest-dispo:hover { background: color-mix(in srgb, var(--ok) 22%, var(--surface-3)); }
+
 /* Lock */
 .pl-garde.locked { opacity: .7; }
 .pl-actions .pl-btn-mini[disabled],
