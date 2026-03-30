@@ -161,44 +161,46 @@ jobs:
       - name: Known hosts
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
           ssh-keyscan -p "${SSH_PORT}" -H "${SSH_HOST}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
       # -------------------------
       #  Déploiement backend
       # -------------------------
       - name: Synchroniser backend → serveur
         run: |
-          rsync -az -e "ssh -p ${SSH_PORT}" \
+          rsync -az -e "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts" \
             backend_out/ \
             ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/app/backend/
 
       - name: Déployer .env prod backend
         run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} 'cat > /opt/feuille-garde/app/backend/.env' <<EOF
-          POSTGRES_DB=${POSTGRES_DB}
-          POSTGRES_USER=${POSTGRES_USER}
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-          POSTGRES_HOST=${POSTGRES_HOST}
-          POSTGRES_PORT=${POSTGRES_PORT}
-          JWT_SECRET=${JWT_SECRET}
-          CORS_ORIGINS=["https://${DOMAIN}"]
-          MAIL_USERNAME=${MAIL_USERNAME}
-          MAIL_PASSWORD=${MAIL_PASSWORD}
-          MAIL_FROM=${MAIL_FROM}
-          MAIL_FROM_NAME=${MAIL_FROM_NAME}
-          MAIL_SERVER=${MAIL_SERVER}
-          MAIL_PORT=${MAIL_PORT}
-          MAIL_TLS=${MAIL_TLS}
-          MAIL_SSL=${MAIL_SSL}
-          TZ=${TZ}
-          FRONTEND_URL=${FRONTEND_URL}
-          GMAIL_IMAP_USER=${GMAIL_IMAP_USER}
-          GMAIL_IMAP_PASSWORD=${GMAIL_IMAP_PASSWORD}
-          GMAIL_CSV_SENDER=${GMAIL_CSV_SENDER}
-          GMAIL_CSV_SUBJECT=${GMAIL_CSV_SUBJECT}
-          GMAIL_FETCH_HOUR=${GMAIL_FETCH_HOUR}
-          EOF
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "chmod 600 /opt/feuille-garde/app/backend/.env"
+          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "cat > /opt/feuille-garde/app/backend/.env" <<EOF
+POSTGRES_DB=${POSTGRES_DB}
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+POSTGRES_HOST=${POSTGRES_HOST}
+POSTGRES_PORT=${POSTGRES_PORT}
+JWT_SECRET=${JWT_SECRET}
+CORS_ORIGINS=["https://${DOMAIN}"]
+MAIL_USERNAME=${MAIL_USERNAME}
+MAIL_PASSWORD=${MAIL_PASSWORD}
+MAIL_FROM=${MAIL_FROM}
+MAIL_FROM_NAME=${MAIL_FROM_NAME}
+MAIL_SERVER=${MAIL_SERVER}
+MAIL_PORT=${MAIL_PORT}
+MAIL_TLS=${MAIL_TLS}
+MAIL_SSL=${MAIL_SSL}
+TZ=${TZ}
+FRONTEND_URL=${FRONTEND_URL}
+GMAIL_IMAP_USER=${GMAIL_IMAP_USER}
+GMAIL_IMAP_PASSWORD=${GMAIL_IMAP_PASSWORD}
+GMAIL_CSV_SENDER=${GMAIL_CSV_SENDER}
+GMAIL_CSV_SUBJECT=${GMAIL_CSV_SUBJECT}
+GMAIL_FETCH_HOUR=${GMAIL_FETCH_HOUR}
+EOF
+          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "chmod 600 /opt/feuille-garde/app/backend/.env"
 
       # -------------------------
       #  Déploiement frontend
@@ -206,17 +208,17 @@ jobs:
       # 🔹 CORRECTION : Un seul rsync avec le bon chemin
       - name: Synchroniser frontend (Vite dist) → serveur
         run: |
-          rsync -az -e "ssh -p ${SSH_PORT}" \
+          rsync -az -e "ssh -p ${SSH_PORT} -o StrictHostKeyChecking=no -o UserKnownHostsFile=~/.ssh/known_hosts" \
             frontend_out/ \
             ${SSH_USER}@${SSH_HOST}:/opt/feuille-garde/frontend_build/
 
       
       - name: Installer dépendances Python sur le serveur
         run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} \
+          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} \
             "/opt/feuille-garde/app/backend/venv/bin/pip install -r /opt/feuille-garde/app/backend/requirements.txt --quiet"
 
       - name: Redémarrer backend + recharger Nginx
         run: |
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde || true"
-          ssh -p "${SSH_PORT}" ${SSH_USER}@${SSH_HOST} "sudo systemctl reload nginx || true"
+          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde || true"
+          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "sudo systemctl reload nginx || true"

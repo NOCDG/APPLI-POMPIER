@@ -2,7 +2,7 @@ from datetime import date as date_type, datetime, timedelta
 import calendar
 from typing import List, Iterable
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import select, and_, func, exists, extract, or_
 from sqlalchemy.orm import Session
@@ -685,6 +685,107 @@ def valider_mois(
         "equipe": equipe_nom,
         "mois": mois_nom,
     }
+
+
+@router.get("/pdf-feuille")
+def get_pdf_feuille(
+    annee: int = Query(..., ge=1970, le=2100),
+    mois: int = Query(..., ge=1, le=12),
+    equipe_id: int = Query(...),
+    db: Session = Depends(get_session),
+    user=Depends(get_current_user),
+):
+    """Génère et retourne le PDF de la feuille de garde sans envoyer d'emails."""
+    gardes = db.scalars(
+        select(Garde).where(
+            extract("year", Garde.date) == annee,
+            extract("month", Garde.date) == mois,
+            Garde.equipe_id == equipe_id,
+        )
+    ).all()
+    if not gardes:
+        raise HTTPException(404, "Aucune garde trouvée pour ce mois/équipe")
+
+    equipe = db.get(Equipe, equipe_id)
+    equipe_nom = equipe.libelle or equipe.code or f"Équipe {equipe_id}"
+    mois_nom = datetime(annee, mois, 1).strftime("%B %Y").capitalize()
+
+    garde_ids = [g.id for g in gardes]
+    affs = db.scalars(
+        select(Affectation)
+        .join(Garde, Garde.id == Affectation.garde_id)
+        .join(Piquet, Piquet.id == Affectation.piquet_id)
+        .where(Affectation.garde_id.in_(garde_ids))
+    ).unique().all()
+
+    from app.services.pdf_generator import generate_feuille_garde_pdf
+
+    def _pdf_name(p) -> str:
+        nom = (p.nom or "").strip()
+        prenom = (p.prenom or "").strip()
+        return f"{nom} {prenom[0]}." if prenom else nom
+
+    pers_ids = {a.personnel_id for a in affs}
+    personnels = db.scalars(select(Personnel).where(Personnel.id.in_(pers_ids))).all()
+    pers_name_map = {p.id: _pdf_name(p) for p in personnels}
+
+    pq_rows = db.scalars(select(Piquet).order_by(Piquet.position, Piquet.code)).all()
+    pdf_piquets = [
+        {"id": p.id, "label": p.libelle or p.code or f"P{p.id}", "is_astreinte": bool(p.is_astreinte)}
+        for p in pq_rows
+    ]
+
+    pdf_aff_map: dict[int, dict[int, str]] = {}
+    for a in affs:
+        pdf_aff_map.setdefault(a.garde_id, {})[a.piquet_id] = pers_name_map.get(a.personnel_id, "?")
+
+    team_members = db.scalars(
+        select(Personnel).where(Personnel.equipe_id == equipe_id, Personnel.is_active.is_(True))
+    ).all()
+    team_ids = {p.id for p in team_members}
+    team_names = {p.id: _pdf_name(p) for p in team_members}
+
+    indispos = db.scalars(select(Indisponibilite).where(Indisponibilite.garde_id.in_(garde_ids))).all()
+    indispo_by_garde: dict[int, set[int]] = {}
+    for i in indispos:
+        indispo_by_garde.setdefault(i.garde_id, set()).add(i.personnel_id)
+
+    assigned_by_garde: dict[int, set[int]] = {}
+    for a in affs:
+        assigned_by_garde.setdefault(a.garde_id, set()).add(a.personnel_id)
+
+    pdf_non_aff_map: dict[int, list[str]] = {}
+    pdf_indispo_map: dict[int, list[str]] = {}
+    for g in gardes:
+        assigned = assigned_by_garde.get(g.id, set())
+        indispo_ids = indispo_by_garde.get(g.id, set())
+        pdf_non_aff_map[g.id] = sorted(team_names[pid] for pid in team_ids if pid not in assigned and pid not in indispo_ids)
+        pdf_indispo_map[g.id] = sorted(team_names[pid] for pid in team_ids & indispo_ids)
+
+    garde_data_for_pdf = [
+        {"id": g.id, "date": g.date, "slot": g.slot.name if hasattr(g.slot, "name") else str(g.slot)}
+        for g in sorted(gardes, key=lambda g: (g.date, 0 if (g.slot.name if hasattr(g.slot, "name") else str(g.slot)) == "JOUR" else 1))
+    ]
+
+    pdf_bytes = generate_feuille_garde_pdf(
+        equipe_label=equipe_nom,
+        mois_label=mois_nom,
+        gardes=garde_data_for_pdf,
+        piquets=pdf_piquets,
+        aff_map=pdf_aff_map,
+        non_aff_map=pdf_non_aff_map,
+        indispo_map=pdf_indispo_map,
+    )
+
+    safe_equipe = equipe_nom.replace(" ", "_").replace("/", "-")
+    safe_mois = mois_nom.replace(" ", "_")
+    filename = f"feuille_garde_{safe_equipe}_{safe_mois}.pdf"
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/devalider-mois")
