@@ -6,6 +6,7 @@ import {
   listIndisponibilites, createIndisponibilite, deleteIndisponibilite,
   listDisposAgatt,
   listProDeGarde,
+  downloadPdfFeuille,
   type Indisponibilite,
   type DispoAgatt,
 } from '../api'
@@ -113,6 +114,8 @@ export default function PlanningPage() {
     gardeId: number
     piquetId: number
   } | null>(null)
+
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   // ---- droits / verrouillage ----
   const [isMonthValidated, setIsMonthValidated] = useState(false)
@@ -646,6 +649,28 @@ export default function PlanningPage() {
         </select>
 
         <button className="pl-btn" onClick={loadMonth}>🔄 Recharger</button>
+
+        {(equipeId !== '' || (isChef && myEquipeId)) && (
+          <button
+            className="pl-btn"
+            title="Télécharger la feuille de garde en PDF"
+            disabled={pdfLoading}
+            onClick={async () => {
+              const eid = isChef ? myEquipeId : (equipeId as number)
+              if (!eid) return
+              setPdfLoading(true)
+              try {
+                await downloadPdfFeuille(year, month, eid)
+              } catch (err: any) {
+                alert(err?.message || "Erreur lors de la génération du PDF")
+              } finally {
+                setPdfLoading(false)
+              }
+            }}
+          >
+            {pdfLoading ? '…' : '📄 PDF'}
+          </button>
+        )}
 
         {/* Zoom */}
         <div className="pl-zoom-group">

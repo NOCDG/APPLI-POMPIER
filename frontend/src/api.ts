@@ -566,3 +566,20 @@ export async function resetPassword(token: string, newPassword: string) {
   return r.data;
 }
 
+export async function downloadPdfFeuille(year: number, month: number, equipe_id: number): Promise<void> {
+  const r = await api.get("/gardes/pdf-feuille", {
+    params: { annee: year, mois: month, equipe_id },
+    responseType: "blob",
+  });
+  const url = URL.createObjectURL(new Blob([r.data], { type: "application/pdf" }));
+  const a = document.createElement("a");
+  const disposition: string = r.headers["content-disposition"] || "";
+  const match = disposition.match(/filename="?([^"]+)"?/);
+  a.href = url;
+  a.download = match ? match[1] : `feuille_garde_${year}_${month}.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
