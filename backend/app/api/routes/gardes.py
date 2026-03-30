@@ -96,14 +96,15 @@ def _seed_french_holidays(db: Session, year: int) -> None:
 
 
 # ---------- GET /gardes (liste par année/mois (+ filtre équipe optionnel)) ----------
-@router.get("", response_model=list[GardeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","AGENT","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
-@router.get("/", response_model=list[GardeRead], dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE","AGENT","CHEF_EQUIPE","ADJ_CHEF_EQUIPE"))])
+@router.get("", response_model=list[GardeRead])
+@router.get("/", response_model=list[GardeRead])
 def list_gardes(
     year: int = Query(..., ge=1970, le=2100),
     month: int = Query(..., ge=1, le=12),
     equipe_id: int | None = Query(None),
     include_unassigned: bool = Query(False),
     db: Session = Depends(get_session),
+    user: PersonnelModel = Depends(get_current_user),
 ):
     q = select(Garde).where(
         and_(
@@ -117,6 +118,25 @@ def list_gardes(
             q = q.where(or_(Garde.equipe_id == equipe_id, Garde.equipe_id.is_(None)))
         else:
             q = q.where(Garde.equipe_id == equipe_id)
+
+    # Filtrage par validation selon le rôle :
+    # - ADMIN : voit tout
+    # - OFFICIER / CHEF_EQUIPE / ADJ_CHEF_EQUIPE : voit les non-validées uniquement de sa propre équipe
+    # - AGENT / OPE : uniquement les gardes validées
+    user_roles = {r.role for r in getattr(user, "roles", [])}
+    if "ADMIN" not in user_roles:
+        if user_roles & {"OFFICIER", "CHEF_EQUIPE", "ADJ_CHEF_EQUIPE"}:
+            # Non-validées visibles seulement pour sa propre équipe
+            own_equipe_id = getattr(user, "equipe_id", None)
+            if own_equipe_id:
+                q = q.where(
+                    or_(Garde.validated.is_(True), Garde.equipe_id == own_equipe_id)
+                )
+            else:
+                q = q.where(Garde.validated.is_(True))
+        else:
+            # AGENT, OPE et tout autre rôle : uniquement validées
+            q = q.where(Garde.validated.is_(True))
 
     q = q.order_by(Garde.date.asc(), Garde.slot.asc())
     rows = db.scalars(q).all()
