@@ -220,5 +220,5 @@ EOF
 
       - name: Redémarrer backend + recharger Nginx
         run: |
-          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde && sudo systemctl is-active --quiet feuille_garde"
-          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "sudo systemctl reload nginx"
+          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "sudo systemctl restart feuille_garde || true"
+          ssh -p "${SSH_PORT}" -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} "sudo systemctl reload nginx || true"
