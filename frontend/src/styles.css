@@ -632,6 +632,32 @@ tbody td {
   border: 1px dashed var(--border);
 }
 
+/* État d'une garde vis-à-vis d'Agatt (accueil) */
+.home-card-remplace {
+  border-color: var(--danger-border);
+  background: var(--danger-dim);
+  opacity: 0.72;
+}
+.home-card-remplace:hover { opacity: 1; }
+
+.chip-remplace {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 700;
+}
+.chip-ajout {
+  background: var(--ok);
+  color: var(--on-accent);
+  border-color: transparent;
+  font-weight: 700;
+}
+.chip-attente {
+  background: var(--raised);
+  color: var(--text-subtle);
+  border: 1px dashed var(--border-dim);
+}
+
 /* =========================================
    CALENDRIER LEGACY
    ========================================= */

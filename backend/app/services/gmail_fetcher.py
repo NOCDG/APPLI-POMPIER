@@ -30,7 +30,14 @@ from app.db.models import Affectation, DispoAgatt, Garde, Personnel
 
 logger = logging.getLogger(__name__)
 
-IMPORT_TYPES = {"DN", "DJ", "DAN", "DAJ", "G24"}
+# Disponibilités déclarées dans Agatt (« je peux prendre cette garde »)
+DISPO_TYPES = {"DN", "DJ", "DAN", "DAJ"}
+
+# Occupations effectives dans Agatt (« je suis réellement de garde »), une fois
+# la feuille saisie par l'OPE. C'est là que se refletent les remplacements.
+OCCUPATION_TYPES = {"J12", "N12", "AJ", "AN", "G24"}
+
+IMPORT_TYPES = DISPO_TYPES | OCCUPATION_TYPES
 
 # Séparateurs CSV possibles, testés sur la ligne d'en-tête
 _CSV_DELIMITERS = (";", ",", "\t", "|")

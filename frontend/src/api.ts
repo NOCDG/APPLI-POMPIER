@@ -350,6 +350,30 @@ export async function listMyUpcomingAffectations(limit = 10, fromISO?: string): 
   return r.data as MyUpcoming[];
 }
 
+/**
+ * Mes vraies gardes : la feuille tant que l'OPE n'a pas fini de saisir dans
+ * Agatt, puis Agatt dès que la garde est intégralement cochée — ce qui fait
+ * apparaître les remplacements faits directement dans Agatt.
+ */
+export type MyRealGarde = {
+  garde_id: number;
+  date: string;
+  slot: 'JOUR' | 'NUIT';
+  is_weekend: boolean;
+  is_holiday: boolean;
+  piquet: { id: number; code: string; libelle?: string | null } | null;
+  equipe?: { id: number; code: string; libelle?: string | null } | null;
+  source: 'feuille' | 'agatt';
+  etat: 'ok' | 'remplace' | 'ajout';
+};
+
+export async function listMyRealGardes(limit = 20, fromISO?: string): Promise<MyRealGarde[]> {
+  const r = await api.get('/affectations/mine_upcoming_real', {
+    params: { limit, start: fromISO },
+  });
+  return r.data as MyRealGarde[];
+}
+
 /* ============================
    AFFECTATIONS
 ============================ */
