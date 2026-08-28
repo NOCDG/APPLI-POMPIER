@@ -3,6 +3,7 @@ Service de récupération et synchronisation du CSV export ST-LO via Gmail IMAP.
 
 Flux :
   1. Connexion Gmail IMAP → téléchargement pièce jointe CSV
+     (mail envoyé directement OU transféré depuis une autre boîte)
   2. Parse du CSV (uniquement DN, DJ, DAN, DAJ, G24)
   3. Sync BDD :
      - INSERT les entrées présentes dans CSV mais absentes de la BDD
@@ -14,8 +15,11 @@ import email
 import imaplib
 import io
 import logging
+import re
 import unicodedata
 from datetime import date as DateType, datetime
+from email.header import decode_header, make_header
+from email.message import Message
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -27,6 +31,12 @@ from app.db.models import Affectation, DispoAgatt, Garde, Personnel
 logger = logging.getLogger(__name__)
 
 IMPORT_TYPES = {"DN", "DJ", "DAN", "DAJ", "G24"}
+
+# Préfixes ajoutés par les clients mail lors d'un transfert (TR:, FW:, Fwd:…)
+_FORWARD_PREFIX_RE = re.compile(r"^(?:\s*(?:tr|fw|fwd|re|rép|rep)\s*:\s*)+", re.IGNORECASE)
+
+# Nombre de messages récents inspectés par dossier
+_MAX_CANDIDATES = 30
 
 
 # ──────────────────────────────────────────────
@@ -176,6 +186,193 @@ def _sync_to_db(db: Session, csv_entries: set[tuple[DateType, str, str, str]]) -
 
 
 # ──────────────────────────────────────────────
+# Récupération du mail (IMAP)
+# ──────────────────────────────────────────────
+
+def _decode(raw: str | None) -> str:
+    """Décode un en-tête MIME (=?utf-8?B?...?=) en texte lisible."""
+    if not raw:
+        return ""
+    try:
+        return str(make_header(decode_header(raw)))
+    except Exception:
+        return raw
+
+
+def _strip_forward_prefixes(subject: str) -> str:
+    """Retire les préfixes « TR: », « FW: », « Fwd: »… d'un sujet."""
+    return _FORWARD_PREFIX_RE.sub("", subject).strip()
+
+
+def _find_csv_attachment(msg: Message) -> bytes | None:
+    """
+    Cherche une pièce jointe .csv dans le message, y compris à l'intérieur
+    d'un message transféré en pièce jointe (message/rfc822).
+    """
+    for part in msg.walk():
+        if part.get_content_maintype() == "multipart":
+            continue
+
+        filename = _decode(part.get_filename())
+        if filename.lower().endswith(".csv"):
+            payload = part.get_payload(decode=True)
+            if payload:
+                return payload
+
+        # Transfert « en pièce jointe » : on descend dans le message imbriqué
+        if part.get_content_type() == "message/rfc822":
+            for sub in part.get_payload():
+                if isinstance(sub, Message):
+                    found = _find_csv_attachment(sub)
+                    if found:
+                        return found
+
+    return None
+
+
+def _matches_sender(msg: Message, senders: list[str]) -> bool:
+    """
+    Vrai si le message provient d'un des expéditeurs autorisés.
+
+    Couvre les 3 cas :
+      - envoi direct           → From = expéditeur d'origine
+      - redirection Exchange   → From d'origine conservé
+      - transfert (« TR: »)    → From = la personne qui transfère ; l'adresse
+                                 d'origine reste citée dans les en-têtes de
+                                 transfert ou dans le bloc « De : … » du corps
+    """
+    if not senders:
+        return True
+
+    headers = " ".join(
+        _decode(msg.get(h))
+        for h in ("From", "Sender", "Reply-To", "Return-Path", "X-Forwarded-For", "Resent-From")
+    ).lower()
+
+    if any(sender.lower() in headers for sender in senders):
+        return True
+
+    # Transfert : l'adresse d'origine apparaît dans le corps du message
+    for part in msg.walk():
+        if part.get_content_maintype() != "text":
+            continue
+        payload = part.get_payload(decode=True)
+        if not payload:
+            continue
+        try:
+            body = payload.decode(part.get_content_charset() or "utf-8", errors="ignore").lower()
+        except LookupError:
+            body = payload.decode("utf-8", errors="ignore").lower()
+        if any(sender.lower() in body for sender in senders):
+            return True
+
+    return False
+
+
+def _fetch_csv_bytes() -> tuple[bytes, str, str]:
+    """
+    Parcourt les dossiers IMAP configurés, du message le plus récent au plus
+    ancien, et retourne la première pièce jointe CSV trouvée dans un message
+    dont le sujet et l'expéditeur correspondent.
+
+    Retourne (contenu_csv, dossier, uid) — le dossier et l'UID servent à
+    marquer le message comme lu une fois la synchro BDD réussie.
+    """
+    senders = settings.gmail_csv_senders
+    subject = _strip_forward_prefixes(settings.GMAIL_CSV_SUBJECT or "")
+
+    logger.info("[gmail_fetcher] Connexion IMAP Gmail…")
+    mail = imaplib.IMAP4_SSL("imap.gmail.com")
+    try:
+        mail.login(settings.GMAIL_IMAP_USER, settings.GMAIL_IMAP_PASSWORD)
+
+        inspected = 0
+        rejected_sender = 0
+
+        for folder in settings.gmail_imap_folders:
+            # readonly : la recherche ne doit rien marquer comme lu, seul un
+            # traitement complet le fera (voir _mark_seen).
+            status, _ = mail.select(f'"{folder}"', readonly=True)
+            if status != "OK":
+                logger.info(f"[gmail_fetcher] Dossier « {folder} » introuvable — ignoré")
+                continue
+
+            # Recherche sur le sujet seul : un mail transféré conserve le sujet
+            # d'origine (préfixé « TR: »), mais pas forcément l'expéditeur.
+            # On travaille en UID : stable d'une session IMAP à l'autre.
+            status, data = mail.uid("SEARCH", None, "SUBJECT", f'"{subject}"')
+            if status != "OK" or not data or not data[0]:
+                continue
+
+            uids = data[0].split()[-_MAX_CANDIDATES:]
+            for raw_uid in reversed(uids):  # du plus récent au plus ancien
+                uid = raw_uid.decode()
+                status, msg_data = mail.uid("FETCH", uid, "(BODY.PEEK[])")
+                if status != "OK" or not msg_data or not msg_data[0]:
+                    continue
+
+                msg = email.message_from_bytes(msg_data[0][1])
+                inspected += 1
+
+                if not _matches_sender(msg, senders):
+                    rejected_sender += 1
+                    continue
+
+                csv_content = _find_csv_attachment(msg)
+                if csv_content is None:
+                    continue
+
+                logger.info(
+                    f"[gmail_fetcher] CSV trouvé — dossier « {folder} », uid {uid}, "
+                    f"de « {_decode(msg.get('From'))} », "
+                    f"sujet « {_decode(msg.get('Subject'))} »"
+                )
+                return csv_content, folder, uid
+
+        raise FileNotFoundError(
+            f"Aucun email avec pièce jointe CSV trouvé "
+            f"(sujet « {subject} », expéditeurs acceptés : {', '.join(senders) or 'tous'}, "
+            f"dossiers : {', '.join(settings.gmail_imap_folders)}). "
+            f"{inspected} message(s) inspecté(s), {rejected_sender} écarté(s) sur l'expéditeur."
+        )
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+
+
+def _mark_seen(folder: str, uid: str) -> None:
+    """
+    Marque le message comme lu, une fois la synchro BDD terminée avec succès.
+
+    Un mail resté « non lu » dans la boîte signale donc un traitement qui n'a
+    pas abouti. L'échec du marquage n'invalide pas la synchro : on se contente
+    de le tracer.
+    """
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com")
+        try:
+            mail.login(settings.GMAIL_IMAP_USER, settings.GMAIL_IMAP_PASSWORD)
+            status, _ = mail.select(f'"{folder}"')  # écriture
+            if status != "OK":
+                logger.warning(f"[gmail_fetcher] Marquage lu impossible : dossier « {folder} » inaccessible")
+                return
+            status, _ = mail.uid("STORE", uid, "+FLAGS", "(\\Seen)")
+            if status != "OK":
+                logger.warning(f"[gmail_fetcher] Marquage lu refusé par le serveur (uid {uid})")
+            else:
+                logger.info(f"[gmail_fetcher] Mail marqué comme lu (dossier « {folder} », uid {uid})")
+        finally:
+            try:
+                mail.logout()
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(f"[gmail_fetcher] Marquage lu échoué (uid {uid}) : {e}")
+
+
+# ──────────────────────────────────────────────
 # Point d'entrée principal
 # ──────────────────────────────────────────────
 
@@ -195,48 +392,7 @@ def fetch_csv_from_gmail() -> str:
             "(GMAIL_IMAP_USER / GMAIL_IMAP_PASSWORD / GMAIL_CSV_SENDER / GMAIL_CSV_SUBJECT)"
         )
 
-    logger.info("[gmail_fetcher] Connexion IMAP Gmail…")
-
-    mail = imaplib.IMAP4_SSL("imap.gmail.com")
-    try:
-        mail.login(settings.GMAIL_IMAP_USER, settings.GMAIL_IMAP_PASSWORD)
-        mail.select("inbox")
-
-        search_criteria = (
-            f'FROM "{settings.GMAIL_CSV_SENDER}" '
-            f'SUBJECT "{settings.GMAIL_CSV_SUBJECT}"'
-        )
-        status, data = mail.search(None, search_criteria)
-        if status != "OK" or not data[0]:
-            raise FileNotFoundError(
-                f"Aucun email trouvé de {settings.GMAIL_CSV_SENDER} "
-                f"avec le sujet « {settings.GMAIL_CSV_SUBJECT} »"
-            )
-
-        latest_id = data[0].split()[-1]
-        status, msg_data = mail.fetch(latest_id, "(RFC822)")
-        if status != "OK":
-            raise RuntimeError("Impossible de récupérer l'email")
-
-        msg = email.message_from_bytes(msg_data[0][1])
-
-        csv_content: bytes | None = None
-        for part in msg.walk():
-            if "attachment" not in part.get("Content-Disposition", ""):
-                continue
-            filename = part.get_filename() or ""
-            if filename.lower().endswith(".csv"):
-                csv_content = part.get_payload(decode=True)
-                break
-
-        if csv_content is None:
-            raise FileNotFoundError("Aucune pièce jointe CSV dans l'email")
-
-    finally:
-        try:
-            mail.logout()
-        except Exception:
-            pass
+    csv_content, folder, uid = _fetch_csv_bytes()
 
     # Parse + sync BDD
     csv_entries = _parse_csv_bytes(csv_content)
@@ -245,6 +401,10 @@ def fetch_csv_from_gmail() -> str:
 
     with SessionLocal() as db:
         inserted, deleted, aff_removed = _sync_to_db(db, csv_entries)
+
+    # Traitement abouti → le mail passe en « lu » : un mail non lu dans la
+    # boîte signale une récupération qui n'a pas fonctionné.
+    _mark_seen(folder, uid)
 
     msg_ok = (
         f"Sync OK — {len(csv_entries)} entrées CSV, "
