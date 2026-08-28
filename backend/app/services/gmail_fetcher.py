@@ -32,6 +32,9 @@ logger = logging.getLogger(__name__)
 
 IMPORT_TYPES = {"DN", "DJ", "DAN", "DAJ", "G24"}
 
+# Séparateurs CSV possibles, testés sur la ligne d'en-tête
+_CSV_DELIMITERS = (";", ",", "\t", "|")
+
 # Préfixes ajoutés par les clients mail lors d'un transfert (TR:, FW:, Fwd:…)
 _FORWARD_PREFIX_RE = re.compile(r"^(?:\s*(?:tr|fw|fwd|re|rép|rep)\s*:\s*)+", re.IGNORECASE)
 
@@ -73,6 +76,15 @@ def _parse_csv_date(raw: str) -> str | None:
     return f"{parts[2]}-{parts[1]}-{parts[0]}"
 
 
+def _detect_delimiter(header_line: str) -> str:
+    """
+    Devine le séparateur d'après la ligne d'en-tête : celui qui produit le
+    plus de colonnes. L'export a changé de « ; » à « , » sans prévenir, et
+    les noms de colonnes ne contiennent aucun de ces caractères.
+    """
+    return max(_CSV_DELIMITERS, key=lambda d: len(header_line.split(d)))
+
+
 def _parse_csv_bytes(content: bytes) -> set[tuple[DateType, str, str, str]]:
     """
     Parse le contenu CSV (bytes) et retourne un set de tuples
@@ -84,7 +96,8 @@ def _parse_csv_bytes(content: bytes) -> set[tuple[DateType, str, str, str]]:
     for enc in encodings:
         try:
             text = content.decode(enc)
-            reader = csv.DictReader(io.StringIO(text), delimiter=";")
+            delimiter = _detect_delimiter(text.splitlines()[0] if text else "")
+            reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
             for row in reader:
                 type_occ = (row.get("Type Occupation") or "").strip()
                 if type_occ not in IMPORT_TYPES:
