@@ -372,3 +372,14 @@
   padding-top: 14px;
   border-top: 1px solid var(--border-dim);
 }
+
+/* Case « mail de validation de feuille » sur la fiche personnel */
+.pg-mail-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+.pg-mail-check input { cursor: pointer; accent-color: var(--accent); }
+.pg-mail-check:hover { color: var(--accent); }

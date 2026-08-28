@@ -463,21 +463,26 @@ def _month_filter(annee: int, mois: int):
     )
 
 
-VALIDATION_FIXED_RECIPIENT = "operation-st-lo@sdis50.fr"
+def _get_validation_mail_recipients(db: Session) -> list[str]:
+    """
+    Destinataires du mail « telle équipe a validé sa feuille ».
 
-def _get_officier_emails(db: Session) -> list[str]:
+    Anciennement : une adresse codée en dur + tous les OFFICIER. Désormais la
+    liste se pilote depuis la fiche du personnel (case « Mail validation
+    feuille de garde »), ce qui évite de toucher au code quand les personnes
+    concernées changent.
+    """
     rows = db.execute(
         select(Personnel.email)
-        .join(PersonnelRole, PersonnelRole.personnel_id == Personnel.id)
         .where(
-            PersonnelRole.role == RoleEnum.OFFICIER,
+            Personnel.mail_validation_feuille.is_(True),
             Personnel.is_active.is_(True),
             Personnel.email.is_not(None),
             Personnel.email != "",
         )
         .distinct()
     ).all()
-    return [r[0] for r in rows if r and r[0]]
+    return sorted({r[0].strip() for r in rows if r and r[0] and r[0].strip()})
 
 
 @router.post("/valider-mois")
@@ -519,10 +524,14 @@ def valider_mois(
     # ✅ Ton template (core/mailer.py) attend exactement: (mois_label, equipe_label, validateur)
     html_admin = build_validation_html(mois_nom, equipe_nom, validator_fullname)
 
-    recipients = {VALIDATION_FIXED_RECIPIENT}
-    recipients.update(_get_officier_emails(db))
-
-    send_mail(sorted(recipients), subject_admin, html_admin, db=db)
+    recipients = _get_validation_mail_recipients(db)
+    if recipients:
+        send_mail(recipients, subject_admin, html_admin, db=db)
+    else:
+        # Personne n'a coché la case : on ne bloque pas la validation pour
+        # autant, les agents doivent recevoir leur planning.
+        print("[WARN] Validation feuille : aucun destinataire n'a coché "
+              "« Mail validation feuille de garde » — mail d'annonce non envoyé.")
 
     # 5️⃣ Récupérer toutes les affectations concernées
     garde_ids = [g.id for g in gardes]

@@ -16,6 +16,7 @@ import {
   listPersonnelRoles,
   assignRoleToPersonnel,
   removeRoleFromPersonnel,
+  apiErrorMessage,
 } from '../api'
 import type { Role, PersonnelCreateResponse } from '../api'
 import './personnels.css'
@@ -222,6 +223,18 @@ export default function PersonnelsPage() {
       setItems(prev => prev.map(x => x.id === p.id ? { ...x, statut: updated.statut } : x))
     }
     setEditingStatutId(null)
+  }
+
+  // ✉️ destinataire du mail d'annonce de validation de feuille
+  async function toggleMailValidation(p: any, checked: boolean) {
+    // optimiste : la case répond tout de suite, on revient en arrière si erreur
+    setItems(prev => prev.map(x => x.id === p.id ? { ...x, mail_validation_feuille: checked } : x))
+    try {
+      await updatePersonnel(p.id, { mail_validation_feuille: checked } as any)
+    } catch (e: any) {
+      setItems(prev => prev.map(x => x.id === p.id ? { ...x, mail_validation_feuille: !checked } : x))
+      alert(apiErrorMessage(e))
+    }
   }
 
   const filtered = useMemo(() => {
@@ -490,6 +503,20 @@ export default function PersonnelsPage() {
                           {rolesOfP.join(', ')} ✎
                         </span>
                       )}
+
+                      {/* ✉️ Destinataire du mail d'annonce de validation de feuille */}
+                      {' '}•{' '}
+                      <label
+                        className="pg-mail-check"
+                        title="Reçoit le mail « telle équipe a validé sa feuille pour tel mois ». N'affecte pas le planning envoyé aux agents."
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(p.mail_validation_feuille)}
+                          onChange={e => toggleMailValidation(p, e.target.checked)}
+                        />
+                        {' '}✉️ Mail validation feuille
+                      </label>
                     </div>
                   </div>
                 </div>

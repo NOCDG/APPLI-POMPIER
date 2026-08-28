@@ -15,6 +15,7 @@ class PersonnelBase(BaseModel):
     email: EmailStr
     statut: StatutLiteral
     equipe_id: Optional[int] = None
+    mail_validation_feuille: bool = False
 
 
 class SetEquipePayload(BaseModel):
@@ -28,6 +29,7 @@ class PersonnelUpdate(BaseModel):
     email: Optional[EmailStr] = None
     statut: Optional[StatutLiteral] = None
     equipe_id: Optional[int | None] = None
+    mail_validation_feuille: Optional[bool] = None
 
 
 class PersonnelCreate(PersonnelBase):
@@ -47,6 +49,7 @@ class PersonnelRead(BaseModel):
     email: EmailStr
     statut: Optional[str] = None   # <= 🔥 clé : str, pas Literal
     equipe_id: Optional[int] = None
+    mail_validation_feuille: bool = False
 
     class Config:
         from_attributes = True

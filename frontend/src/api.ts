@@ -43,6 +43,8 @@ export type Personnel = {
   email: string;
   statut: Statut;                    // 🆕 plus un string libre
   equipe_id?: number | null;
+  /** Reçoit le mail « telle équipe a validé sa feuille pour tel mois » */
+  mail_validation_feuille?: boolean;
 };
 
 export type PersonnelCreatePayload = {
