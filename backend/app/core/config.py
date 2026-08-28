@@ -24,9 +24,13 @@ class Settings(BaseSettings):
     # --- Import CSV Gmail IMAP ---
     GMAIL_IMAP_USER: Optional[str] = None
     GMAIL_IMAP_PASSWORD: Optional[str] = None
+    # Accepte plusieurs expéditeurs séparés par des virgules
+    # (expéditeur d'origine + adresses qui transfèrent le mail).
     GMAIL_CSV_SENDER: Optional[str] = None
     GMAIL_CSV_SUBJECT: Optional[str] = None
     GMAIL_FETCH_HOUR: int = 3
+    # Dossiers IMAP à scruter (un mail transféré peut atterrir en spam)
+    GMAIL_IMAP_FOLDERS: str = "INBOX,[Gmail]/Spam"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -54,6 +58,18 @@ class Settings(BaseSettings):
             "Config BDD manquante : définis DATABASE_URL "
             "ou POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD"
         )
+
+    @property
+    def gmail_csv_senders(self) -> List[str]:
+        """Liste des expéditeurs acceptés pour le mail contenant le CSV."""
+        raw = (self.GMAIL_CSV_SENDER or "").strip()
+        return [x.strip() for x in raw.split(",") if x.strip()]
+
+    @property
+    def gmail_imap_folders(self) -> List[str]:
+        """Liste des dossiers IMAP à parcourir, dans l'ordre."""
+        raw = (self.GMAIL_IMAP_FOLDERS or "INBOX").strip()
+        return [x.strip() for x in raw.split(",") if x.strip()]
 
     @property
     def cors_list(self) -> List[str]:
