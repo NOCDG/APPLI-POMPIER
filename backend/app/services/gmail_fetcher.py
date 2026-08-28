@@ -38,6 +38,11 @@ _FORWARD_PREFIX_RE = re.compile(r"^(?:\s*(?:tr|fw|fwd|re|rép|rep)\s*:\s*)+", re
 # Nombre de messages récents inspectés par dossier
 _MAX_CANDIDATES = 30
 
+# Repli sur le sujet : nombre minimum de mots communs entre le sujet attendu
+# et celui du message. Couvre les sujets tronqués ou reformulés par le client
+# mail lors d'un transfert (« Export_Agatt_base_ST-LO » → « Export_base_ST-LO »).
+_MIN_SUBJECT_TOKENS = 2
+
 
 # ──────────────────────────────────────────────
 # Helpers
@@ -200,8 +205,28 @@ def _decode(raw: str | None) -> str:
 
 
 def _strip_forward_prefixes(subject: str) -> str:
-    """Retire les préfixes « TR: », « FW: », « Fwd: »… d'un sujet."""
+    """Retire les préfixes « TR: », « FW: », « Fwd: »… d'un sujet (même répétés)."""
     return _FORWARD_PREFIX_RE.sub("", subject).strip()
+
+
+def _subject_tokens(subject: str) -> set[str]:
+    """Découpe un sujet en mots significatifs (≥ 3 caractères, minuscules)."""
+    return {
+        t for t in re.split(r"[^0-9a-zA-Z\-]+", _strip_forward_prefixes(subject).lower())
+        if len(t) >= 3
+    }
+
+
+def _subject_matches_loosely(subject: str, expected_tokens: set[str]) -> bool:
+    """
+    Vrai si le sujet partage assez de mots avec le sujet attendu.
+
+    Sert de repli quand la recherche IMAP exacte ne donne rien : un transfert
+    peut tronquer ou reformuler le sujet d'origine.
+    """
+    if not expected_tokens:
+        return True
+    return len(_subject_tokens(subject) & expected_tokens) >= _MIN_SUBJECT_TOKENS
 
 
 def _find_csv_attachment(msg: Message) -> bytes | None:
@@ -280,60 +305,92 @@ def _fetch_csv_bytes() -> tuple[bytes, str, str]:
     """
     senders = settings.gmail_csv_senders
     subject = _strip_forward_prefixes(settings.GMAIL_CSV_SUBJECT or "")
+    expected_tokens = _subject_tokens(subject)
+
+    stats = {"inspected": 0, "rejected_sender": 0, "rejected_subject": 0}
+    seen_subjects: list[str] = []
+
+    def scan(mail: imaplib.IMAP4_SSL, folder: str, uids: list[bytes], loose: bool):
+        """Inspecte les messages du plus récent au plus ancien."""
+        for raw_uid in reversed(uids):
+            uid = raw_uid.decode()
+            status, msg_data = mail.uid("FETCH", uid, "(BODY.PEEK[])")
+            if status != "OK" or not msg_data or not msg_data[0]:
+                continue
+
+            msg = email.message_from_bytes(msg_data[0][1])
+            msg_subject = _decode(msg.get("Subject"))
+            stats["inspected"] += 1
+            if len(seen_subjects) < 10:
+                seen_subjects.append(msg_subject)
+
+            if not _matches_sender(msg, senders):
+                stats["rejected_sender"] += 1
+                continue
+
+            # En repli, le sujet n'a pas été filtré par le serveur : on vérifie
+            # qu'il ressemble bien à celui attendu.
+            if loose and not _subject_matches_loosely(msg_subject, expected_tokens):
+                stats["rejected_subject"] += 1
+                continue
+
+            csv_content = _find_csv_attachment(msg)
+            if csv_content is None:
+                continue
+
+            logger.info(
+                f"[gmail_fetcher] CSV trouvé — dossier « {folder} », uid {uid}, "
+                f"de « {_decode(msg.get('From'))} », sujet « {msg_subject} »"
+                + (" (correspondance approchée sur le sujet)" if loose else "")
+            )
+            return csv_content, folder, uid
+        return None
 
     logger.info("[gmail_fetcher] Connexion IMAP Gmail…")
     mail = imaplib.IMAP4_SSL("imap.gmail.com")
     try:
         mail.login(settings.GMAIL_IMAP_USER, settings.GMAIL_IMAP_PASSWORD)
 
-        inspected = 0
-        rejected_sender = 0
-
-        for folder in settings.gmail_imap_folders:
-            # readonly : la recherche ne doit rien marquer comme lu, seul un
-            # traitement complet le fera (voir _mark_seen).
-            status, _ = mail.select(f'"{folder}"', readonly=True)
-            if status != "OK":
-                logger.info(f"[gmail_fetcher] Dossier « {folder} » introuvable — ignoré")
-                continue
-
-            # Recherche sur le sujet seul : un mail transféré conserve le sujet
-            # d'origine (préfixé « TR: »), mais pas forcément l'expéditeur.
-            # On travaille en UID : stable d'une session IMAP à l'autre.
-            status, data = mail.uid("SEARCH", None, "SUBJECT", f'"{subject}"')
-            if status != "OK" or not data or not data[0]:
-                continue
-
-            uids = data[0].split()[-_MAX_CANDIDATES:]
-            for raw_uid in reversed(uids):  # du plus récent au plus ancien
-                uid = raw_uid.decode()
-                status, msg_data = mail.uid("FETCH", uid, "(BODY.PEEK[])")
-                if status != "OK" or not msg_data or not msg_data[0]:
+        # Passe 1 : sujet exact (sous-chaîne) côté serveur — le cas nominal.
+        # Passe 2 : repli sur les derniers messages du dossier, filtrés en
+        # Python. Rattrape les transferts dont le sujet a été tronqué ou
+        # reformulé, cas qu'une recherche IMAP par sous-chaîne ne peut pas voir.
+        for loose in (False, True):
+            for folder in settings.gmail_imap_folders:
+                # readonly : la recherche ne doit rien marquer comme lu, seul un
+                # traitement complet le fera (voir _mark_seen).
+                status, _ = mail.select(f'"{folder}"', readonly=True)
+                if status != "OK":
+                    if not loose:
+                        logger.info(f"[gmail_fetcher] Dossier « {folder} » introuvable — ignoré")
                     continue
 
-                msg = email.message_from_bytes(msg_data[0][1])
-                inspected += 1
-
-                if not _matches_sender(msg, senders):
-                    rejected_sender += 1
+                # On travaille en UID : stable d'une session IMAP à l'autre.
+                if loose:
+                    status, data = mail.uid("SEARCH", None, "ALL")
+                else:
+                    status, data = mail.uid("SEARCH", None, "SUBJECT", f'"{subject}"')
+                if status != "OK" or not data or not data[0]:
                     continue
 
-                csv_content = _find_csv_attachment(msg)
-                if csv_content is None:
-                    continue
+                found = scan(mail, folder, data[0].split()[-_MAX_CANDIDATES:], loose)
+                if found:
+                    return found
 
+            if not loose:
                 logger.info(
-                    f"[gmail_fetcher] CSV trouvé — dossier « {folder} », uid {uid}, "
-                    f"de « {_decode(msg.get('From'))} », "
-                    f"sujet « {_decode(msg.get('Subject'))} »"
+                    "[gmail_fetcher] Sujet exact introuvable — repli sur "
+                    "correspondance approchée"
                 )
-                return csv_content, folder, uid
 
         raise FileNotFoundError(
             f"Aucun email avec pièce jointe CSV trouvé "
             f"(sujet « {subject} », expéditeurs acceptés : {', '.join(senders) or 'tous'}, "
             f"dossiers : {', '.join(settings.gmail_imap_folders)}). "
-            f"{inspected} message(s) inspecté(s), {rejected_sender} écarté(s) sur l'expéditeur."
+            f"{stats['inspected']} message(s) inspecté(s), "
+            f"{stats['rejected_sender']} écarté(s) sur l'expéditeur, "
+            f"{stats['rejected_subject']} sur le sujet. "
+            f"Derniers sujets vus : {' | '.join(seen_subjects) or 'aucun'}"
         )
     finally:
         try:
