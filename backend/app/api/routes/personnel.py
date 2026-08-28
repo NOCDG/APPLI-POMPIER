@@ -185,6 +185,8 @@ def update_personnel(
         p.grade = payload.grade
     if payload.equipe_id is not None:
         p.equipe_id = payload.equipe_id
+    if payload.mail_validation_feuille is not None:
+        p.mail_validation_feuille = payload.mail_validation_feuille
 
     # 🆕 gestion du statut avec 3 valeurs
     if payload.statut is not None:

@@ -59,6 +59,11 @@ class Personnel(Base):
     hashed_password: Mapped[str | None] = mapped_column(String(255), default=None)
     is_active: Mapped[bool] = mapped_column(default=True)
 
+    # ✉️ Reçoit le mail « telle équipe a validé sa feuille pour tel mois ».
+    # Remplace les destinataires codés en dur : on ajoute/retire simplement la
+    # coche quand les personnes concernées changent.
+    mail_validation_feuille = Column(Boolean, nullable=False, server_default="false")
+
     roles = relationship("PersonnelRole", back_populates="personnel", cascade="all, delete-orphan")
     # ⚠️ un seul champ equipe_id, avec SET NULL si l'équipe est supprimée
     equipe_id: Mapped[int | None] = mapped_column(
