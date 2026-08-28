@@ -1,90 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
-import {
-  getCachedMe, getMe,
-  listAffectations, // on récupère MES affectations
-  listGardes,      // on charge les gardes du mois courant + suivant (sans filtre équipe)
-  listEquipes,     // pour afficher l'équipe de chaque garde
-  getPiquets,      // pour afficher le code du piquet
-  type Equipe as EqType,
-} from "../api";
-
-type Garde = {
-  id: number;
-  date: string;
-  slot: "JOUR" | "NUIT";
-  is_weekend: boolean;
-  is_holiday: boolean;
-  equipe_id?: number | null;
-  validated?: boolean;
-};
-
-type Piquet = { id: number; code?: string; libelle?: string };
-type Affectation = { id: number; garde_id: number; piquet_id: number; personnel_id: number };
-type EquipeMini = { id: number; code?: string; libelle?: string; couleur?: string | null } & Partial<EqType>;
+import React, { useEffect, useState } from "react";
+import { listMyRealGardes, type MyRealGarde } from "../api";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const [affectations, setAffectations] = useState<Affectation[]>([]);
-  const [gardes, setGardes] = useState<Garde[]>([]);
-  const [equipesMap, setEquipesMap] = useState<Record<number, EquipeMini>>({});
-  const [piquetsMap, setPiquetsMap] = useState<Record<number, Piquet>>({});
+  const [gardes, setGardes] = useState<MyRealGarde[]>([]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
       setError("");
       try {
-        // 1) Qui suis-je ?
-        const me = getCachedMe() || (await getMe());
-
-        // 2) Mes affectations (toutes)
-        let myAffects: Affectation[] = [];
-        try {
-          const all = await listAffectations(); // ton API accepte sans params (sinon adapter en ?personnel_id=me.id)
-          myAffects = (all || []).filter((a: Affectation) => a.personnel_id === me.id);
-        } catch (e: any) {
-          throw new Error(e?.message || "Impossible de récupérer vos affectations.");
-        }
-        setAffectations(myAffects);
-
-        // 3) Les piquets (pour lire le code)
-        const ps = await getPiquets();
-        const pmap: Record<number, Piquet> = {};
-        for (const p of ps) pmap[p.id] = p;
-        setPiquetsMap(pmap);
-
-        // 4) Les équipes (pour badge équipe sur la carte)
-        const eqs = await listEquipes();
-        const emap: Record<number, EquipeMini> = {};
-        for (const e of eqs) emap[(e as any).id] = e as any;
-        setEquipesMap(emap);
-
-        // 5) Gardes du mois courant + suivant (sans filtre équipe) puis on garde celles où j’ai une affectation
-        const now = new Date();
-        const y1 = now.getFullYear();
-        const m1 = now.getMonth() + 1;
-        const next = new Date(y1, m1, 1);
-        const y2 = next.getFullYear();
-        const m2 = next.getMonth() + 1;
-
-        const [g1, g2] = await Promise.all([
-          listGardes({ year: y1, month: m1 }), // pas d’equipe_id
-          listGardes({ year: y2, month: m2 }),
-        ]);
-
-        const gardeIdsMine = new Set(myAffects.map((a) => a.garde_id));
-        const todayISO = new Date().toISOString().slice(0, 10);
-
-        const merged = [...(g1 || []), ...(g2 || [])]
-          .filter((g: Garde) => gardeIdsMine.has(g.id) && g.date >= todayISO && g.validated === true)
-          .sort((a: Garde, b: Garde) =>
-            a.date === b.date ? (a.slot > b.slot ? 1 : -1) : a.date.localeCompare(b.date),
-          )
-          .slice(0, 20);
-
-        setGardes(merged);
+        // Une seule requête : le backend rapproche déjà la feuille et Agatt.
+        setGardes(await listMyRealGardes(20));
       } catch (e: any) {
         setError(e?.message || "Impossible de charger vos prochaines gardes.");
       } finally {
@@ -101,18 +29,6 @@ export default function Home() {
       month: "long",
     });
   }
-
-  // retrouver le piquet lié à une garde où je suis affecté
-  function piquetForGarde(garde_id: number): Piquet | null {
-    const aff = affectations.find((a) => a.garde_id === garde_id);
-    return aff ? piquetsMap[aff.piquet_id] || null : null;
-  }
-
-  // retrouver l’équipe d’une garde
-  function equipeForGarde(g: Garde): EquipeMini | null {
-    if (!g.equipe_id && g.equipe_id !== 0) return null;
-    return equipesMap[g.equipe_id as number] || null;
-    }
 
   return (
     <div>
@@ -133,11 +49,16 @@ export default function Home() {
       ) : (
         <div className="home-list">
           {gardes.map((g) => {
-            const piquet = piquetForGarde(g.id);
-            const eq = equipeForGarde(g);
             const isNight = g.slot === "NUIT";
+            const remplace = g.etat === "remplace";
+            const ajout = g.etat === "ajout";
+
             return (
-              <div key={g.id} className="home-card" style={{ position: "relative" }}>
+              <div
+                key={`${g.garde_id}-${g.etat}`}
+                className={`home-card${remplace ? " home-card-remplace" : ""}`}
+                style={{ position: "relative" }}
+              >
                 {/* Date + badges WE/JF */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ fontWeight: 700, textTransform: "capitalize" }}>
@@ -151,7 +72,7 @@ export default function Home() {
                 </div>
 
                 {/* Badge équipe en haut-droite */}
-                {eq?.code && (
+                {g.equipe?.code && (
                   <div
                     style={{
                       position: "absolute",
@@ -166,9 +87,9 @@ export default function Home() {
                       textTransform: "uppercase",
                       zIndex: 2,
                     }}
-                    title={eq.libelle || ""}
+                    title={g.equipe.libelle || ""}
                   >
-                    EQ {String(eq.code).toUpperCase()}
+                    EQ {String(g.equipe.code).toUpperCase()}
                   </div>
                 )}
 
@@ -191,18 +112,53 @@ export default function Home() {
                   </span>
 
                   <span
-                    className="chip"
-                    title={piquet?.libelle || ""}
+                    className={g.piquet ? "chip" : "chip chip-none"}
+                    title={
+                      g.piquet
+                        ? g.piquet.libelle || ""
+                        : "Piquet non renseigné dans l'export Agatt"
+                    }
                   >
-                    {piquet ? `👷 ${piquet.code || piquet.libelle || `Piquet #${piquet.id}`}` : "—"}
+                    {g.piquet
+                      ? `👷 ${g.piquet.code || g.piquet.libelle || `Piquet #${g.piquet.id}`}`
+                      : "👷 piquet à confirmer"}
                   </span>
                 </div>
+
+                {/* État vis-à-vis d'Agatt */}
+                {(remplace || ajout || g.source === "feuille") && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {remplace && (
+                      <span
+                        className="chip chip-remplace"
+                        title="Vous n'apparaissez plus sur cette garde dans Agatt : le remplacement est enregistré."
+                      >
+                        ✕ Remplacé
+                      </span>
+                    )}
+                    {ajout && (
+                      <span
+                        className="chip chip-ajout"
+                        title="Vous prenez cette garde dans Agatt sans être sur la feuille : vous remplacez quelqu'un."
+                      >
+                        ↻ Remplacement
+                      </span>
+                    )}
+                    {g.source === "feuille" && (
+                      <span
+                        className="chip chip-attente"
+                        title="Garde pas encore saisie dans Agatt par l'opérateur : elle peut encore évoluer."
+                      >
+                        ⏳ Non saisie dans Agatt
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
-
     </div>
   );
 }

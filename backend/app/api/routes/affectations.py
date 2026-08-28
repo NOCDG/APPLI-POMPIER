@@ -11,6 +11,7 @@ from app.core.security import get_current_user, ensure_can_modify_garde, require
 from app.db.models import Affectation, Garde, Piquet, Personnel, Personnel as PersonnelModel
 from app.schemas.affectation import AffectationCreate, AffectationRead, AffectationOpeCheckPatch
 from app.services.planning import has_all_required_competences, would_make_three_in_a_row
+from app.services.gardes_reelles import mes_gardes_reelles
 
 from pydantic import BaseModel
 
@@ -149,6 +150,21 @@ class MyUpcomingAff(BaseModel):
     equipe: EquipeMini | None
 
 
+class MyRealGarde(BaseModel):
+    """Une garde telle qu'elle est réellement, feuille corrigée par Agatt."""
+    garde_id: int
+    date: date_type
+    slot: str  # 'JOUR' | 'NUIT'
+    is_weekend: bool
+    is_holiday: bool
+    piquet: PiquetMini | None  # None si non déductible pour un remplaçant
+    equipe: EquipeMini | None
+    source: str  # 'feuille' | 'agatt'
+    etat: str    # 'ok' | 'remplace' | 'ajout'
+    class Config:
+        from_attributes = True
+
+
 # GET /affectations/mine_upcoming
 @router.get("/mine_upcoming", response_model=List[MyUpcomingAff])
 def mine_upcoming_affectations(
@@ -200,6 +216,22 @@ def mine_upcoming_affectations(
             equipe=equipe_mini,  # 🔹 renvoyé si présent
         ))
     return out
+
+
+# GET /affectations/mine_upcoming_real
+@router.get("/mine_upcoming_real", response_model=List[MyRealGarde])
+def mine_upcoming_real(
+    limit: int = Query(20, ge=1, le=100),
+    start: date_type | None = Query(None),
+    db: Session = Depends(get_session),
+    user: PersonnelModel = Depends(get_current_user),
+):
+    """
+    Mes prochaines gardes réelles : la feuille de garde tant que l'OPE n'a pas
+    fini de saisir dans Agatt, puis Agatt dès que la garde est intégralement
+    cochée — ce qui fait apparaître les remplacements.
+    """
+    return mes_gardes_reelles(db, user, start or date_type.today(), limit)
 
 
 # --- Suggestions pour accélérer le planning ---
