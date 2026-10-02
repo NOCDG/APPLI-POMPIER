@@ -41,6 +41,11 @@ class AssignTeamRequest(BaseModel):
     slot: SlotLiteral
     equipe_id: int
 
+class ClearTeamRequest(BaseModel):
+    """Retrait de l'équipe d'un créneau : pas d'equipe_id, il n'y a rien à cibler."""
+    date: date
+    slot: SlotLiteral
+
 class GenerateMonthAllRequest(BaseModel):
     year: int
     month: int

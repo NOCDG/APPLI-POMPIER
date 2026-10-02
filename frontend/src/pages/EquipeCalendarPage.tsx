@@ -3,6 +3,8 @@ import {
   listEquipes,
   listGardesAllMonth,
   assignTeamToSlot,
+  clearTeamFromSlot,
+  apiErrorMessage,
   generateMonthAll,
   generateYear,
   listGardes, // ✅ on récupère TOUTES les gardes du mois (avec ou sans équipe)
@@ -101,7 +103,8 @@ export default function EquipeCalendarPage() {
   }
 
   async function onChangeEquipe(dateIso: string, slot: 'JOUR'|'NUIT', equipe_id_str: string) {
-    if (!equipe_id_str) return
+    // Option « — » : on retire l'équipe du créneau au lieu de ne rien faire.
+    if (!equipe_id_str) return onClearEquipe(dateIso, slot)
     const equipe_id = Number(equipe_id_str)
     try {
       const g = await assignTeamToSlot({ date: dateIso, slot, equipe_id })
@@ -119,6 +122,28 @@ export default function EquipeCalendarPage() {
       }))
     } catch (e:any) {
       alert(e?.message || 'Affectation équipe impossible')
+    }
+  }
+
+  async function onClearEquipe(dateIso: string, slot: 'JOUR'|'NUIT') {
+    const actuelle = currentEquipeId(dateIso, slot)
+    if (actuelle === '') return  // déjà sans équipe, rien à faire
+
+    // Les affectations de la garde ne sont pas supprimées : on prévient,
+    // sinon on se retrouve avec des agents affectés sur une garde sans équipe.
+    if (!confirm(`Retirer l'équipe de la garde ${slot} du ${dateIso} ?\n\nLes affectations déjà saisies sur cette garde sont conservées.`)) {
+      return
+    }
+
+    try {
+      await clearTeamFromSlot({ date: dateIso, slot })
+      setGardesByKey(prev => {
+        const k = `${dateIso}|${slot}`
+        const g = prev[k]
+        return g ? { ...prev, [k]: { ...g, equipe_id: null } } : prev
+      })
+    } catch (e:any) {
+      alert(apiErrorMessage?.(e) || e?.message || 'Retrait de l’équipe impossible')
     }
   }
 
