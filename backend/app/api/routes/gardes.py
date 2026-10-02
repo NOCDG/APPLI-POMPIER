@@ -29,7 +29,7 @@ from app.db.models import (
 from app.services.planning import would_make_three_in_a_row
 from app.schemas.garde import (
     GardeRead, GenerateMonthRequest, GardeCreate,
-    AssignTeamRequest, GenerateMonthAllRequest,
+    AssignTeamRequest, ClearTeamRequest, GenerateMonthAllRequest,
 )
 
 router = APIRouter(prefix="/gardes", tags=["gardes"])
@@ -272,7 +272,7 @@ def assign_team(
 # ---------- PUT /gardes/clear_team (retirer l’équipe d’un jour/slot) ----------
 @router.put("/clear_team", response_model=GardeRead, dependencies=[Depends(require_roles("ADMIN","OFFICIER","OPE"))])
 def clear_team(
-    payload: AssignTeamRequest,
+    payload: ClearTeamRequest,
     db: Session = Depends(get_session),
     user: PersonnelModel = Depends(get_current_user),
 ):
